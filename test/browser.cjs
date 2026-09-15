@@ -40,20 +40,20 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:4318';
   // Traverse the entire actual level using only direction/jump key events.
   await page.keyboard.down('ArrowRight');
   let jumpDown=false;
-  for(let i=0;i<2200;i++){
+  for(let i=0;i<3500;i++){
    const shouldJump=await page.evaluate(()=>{
     const p=test.player;if(!p.grounded)return false;
-    return [620,1430,2220].some(edge=>edge-p.x>0&&edge-p.x<52)||test.enemies.some(e=>!e.defeated&&e.x>=p.x&&e.x-p.x<105);
+    return [620,1430,2260,3120,3960,4620].some(edge=>edge-p.x>0&&edge-p.x<36)||test.enemies.some(e=>!e.defeated&&e.x>=p.x&&e.x-p.x<105);
    });
    if(shouldJump&&!jumpDown){await page.keyboard.down('Space');jumpDown=true;}
-   else if(jumpDown){await page.keyboard.up('Space');jumpDown=false;}
+   else if(jumpDown && (await snapshot()).vy>=0){await page.keyboard.up('Space');jumpDown=false;}
    const before=await snapshot();await step(1);s=await snapshot();if(s.lives<before.lives)console.log('Life lost at',before);if(s.state!=='playing')break;
   }
   await page.keyboard.up('ArrowRight');await page.keyboard.up('Space');
-  assert.equal(s.state,'won',JSON.stringify(s));assert.ok(s.lives>0);assert.equal(await page.locator('#end-title').textContent(),'You win!');
+  assert.equal(s.state,'won',JSON.stringify(s));assert.ok(s.lives>0);assert.equal(await page.locator('#end-title').textContent(),'Star delivered!');
   await page.screenshot({path:'test-results/win.png'});await page.getByRole('button',{name:'Play again',exact:true}).click();s=await snapshot();assert.equal(s.x,80);assert.equal(s.lives,3);assert.equal(s.state,'playing');assert.equal(await page.locator('#coins').textContent(),'Coins: 0');
   for(let i=0;i<3;i++){await page.evaluate(()=>{test.player.y=705});await step(1);}
-  assert.equal(await page.locator('#end-title').textContent(),'Game Over');await page.getByRole('button',{name:'Try again',exact:true}).click();assert.equal((await snapshot()).lives,3);assert.equal((await snapshot()).state,'playing');
+  assert.equal(await page.locator('#end-title').textContent(),'Signal lost');await page.getByRole('button',{name:'Try again',exact:true}).click();assert.equal((await snapshot()).lives,3);assert.equal((await snapshot()).state,'playing');
   console.log('PASS: desktop and phone rendering; keyboard; real multi-touch hold/jump/release/cancel; blur; full keyboard playthrough; both restart buttons.');
  }finally{await browser.close();if(server)server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
