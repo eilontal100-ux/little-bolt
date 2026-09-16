@@ -888,7 +888,7 @@ html,body,button,.card button{font-family:ui-monospace,SFMono-Regular,Consolas,m
 .hud,.card,.card button,.touch-controls button,#toast{border-radius:0;box-shadow:4px 4px 0 #060b1c;border-width:2px}
 .overlay{backdrop-filter:none}.brand{letter-spacing:2px}.track,#progress{height:4px}
 #fullscreen{position:absolute;right:24px;top:max(88px,calc(env(safe-area-inset-top) + 74px));z-index:5;background:#17233e;color:#dffbff;border:2px solid #7cf0ff88;padding:10px 12px;font:700 11px ui-monospace,monospace;cursor:pointer;touch-action:manipulation;box-shadow:3px 3px #060b1c}
-#fullscreen:focus-visible{outline:3px solid #ffcf6b;outline-offset:3px}main:fullscreen,main.expanded{width:100vw;height:100dvh;max-width:none;max-height:none;background:#0d1130}main.expanded{position:fixed;inset:0;z-index:10}@media(max-width:760px){#fullscreen{right:12px;font-size:9px;padding:9px 7px}}@media(max-height:450px){#fullscreen{top:74px}}
+#fullscreen:focus-visible{outline:3px solid #ffcf6b;outline-offset:3px}main:fullscreen,main.expanded{width:100vw;height:100dvh;max-width:none;max-height:none;background:#0d1130}main.expanded{position:fixed;inset:0;z-index:10}@media(max-width:760px){#fullscreen{right:12px;font-size:0;width:36px;height:34px;padding:0}#fullscreen::after{content:"⛶";font-size:22px}#fullscreen[aria-pressed="true"]::after{content:"×"}}@media(max-height:450px){#fullscreen{top:74px}}
 </style></head><body><main id="game-shell" aria-label="Moonlight Courier game">
 <button id="fullscreen" type="button" aria-label="Toggle fullscreen" aria-pressed="false">FULLSCREEN</button>
 <canvas id="game" tabindex="-1" aria-label="A robot platformer. Move with A and D or arrow keys; jump with Space or W; dash with Shift or X."></canvas>
