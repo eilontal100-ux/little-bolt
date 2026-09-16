@@ -1,6 +1,6 @@
 # Moonlight Courier — The Five Beacons
 
-An original, compact five-stage browser platformer: Whispering Forest, Flooded Ruins, Wind Canopy, Star Observatory, and Guardian Spire. Carry the star through eight required gaps, collect 37 coins and four optional fragments, and defeat the guardian. Layered procedural scenery, an animated scarf-wearing courier, beetles, drones, moving platforms, checkpoints, shield and double-jump pickups are all self-contained.
+An original, compact five-stage browser platformer: Whispering Forest, Flooded Ruins, Wind Canopy, Star Observatory, and Guardian Spire. Carry the star through eight required gaps, collect 37 coins and four optional fragments, and defeat the guardian. Pixel-art sprites, tiled terrain, a retro HUD, layered scenery, an animated scarf-wearing courier, beetles, drones, moving platforms, checkpoints, shield and double-jump pickups are all self-contained.
 
 ## Run
 
@@ -13,6 +13,7 @@ Open http://localhost:3000. The single-file Node/Express server binds to `0.0.0.
 
 ## Play
 
+- Fullscreen: click FULLSCREEN or press F. Press Escape to leave native fullscreen. Browsers without fullscreen support use an expanded game view; F, Escape, or the button exits it. Browser controls may remain visible in this fallback.
 - Move: arrows or A/D. Jump: Space or W; hold for height, release for a short hop.
 - Dash: Shift or X, with a 0.9-second cooldown. Dash does not grant invulnerability or damage enemies.
 - Phone: independent direction, DASH, and JUMP buttons support simultaneous touches.
@@ -37,3 +38,5 @@ Physical iPhone/Safari has not been tested. This is a compact procedural-art cam
 ## Render
 
 `render.yaml` configures `npm ci`, `npm start`, and health check `/`. Merge the campaign pull request into `main`, then deploy on Render. No secrets or code changes are required; Render supplies `PORT`.
+
+Pixel-art/fullscreen update: automated tests cover fullscreen entry/exit, Escape synchronization, unsupported/rejected API fallback, and input clearing. Fresh visual verification was blocked by the mounted browser tool (endpoint ownership mismatch); physical-device fullscreen remains unverified.

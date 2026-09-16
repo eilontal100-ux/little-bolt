@@ -44,11 +44,7 @@ function gameClient() {
 
   // ---- screen-space (parallax) ----
   ART.drawSky = function(ctx, view, t, pal){
-    const g = ctx.createLinearGradient(0,0,0,view.h);
-    g.addColorStop(0,pal.sky[0]); g.addColorStop(0.55,pal.sky[1]); g.addColorStop(1,pal.sky[2]);
-    ctx.fillStyle=g; ctx.fillRect(0,0,view.w,view.h);
-    const bands=[{y:70,c:pal.accent+'22'},{y:170,c:'#7c6bff1c'}];
-    for(const b of bands){const bg=ctx.createLinearGradient(0,b.y-60,0,b.y+60);bg.addColorStop(0,'#00000000');bg.addColorStop(0.5,b.c);bg.addColorStop(1,'#00000000');ctx.fillStyle=bg;ctx.fillRect(0,b.y-60,view.w,120);}
+    for(let i=0;i<3;i++){ctx.fillStyle=pal.sky[i];ctx.fillRect(0,i*view.h/3,view.w,view.h/3+1);}
   };
   ART.drawStars = function(ctx, view, camera, t, stars){
     for(const s of stars){
@@ -94,21 +90,14 @@ function gameClient() {
     ctx.restore();
   };
   ART.drawCanopyMid = function(ctx, view, camera, t, pal, blobs){
-    for(const c of blobs){
-      const x = c.x - camera*0.42;
-      if(x<-160||x>view.w+160) continue;
-      for(const l of c.lobes){
-        const bob = Math.sin(t*0.5 + x*0.01 + l.dx) *2;
-        const cy = c.baseY+l.dy+bob;
-        ctx.fillStyle=pal.deep;
-        ctx.beginPath(); ctx.arc(x+l.dx, cy+l.r*0.3, l.r*0.9, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle=pal.moss;
-        ctx.beginPath(); ctx.arc(x+l.dx, cy, l.r, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle=pal.leaf;
-        ctx.beginPath(); ctx.arc(x+l.dx-l.r*0.25, cy-l.r*0.3, l.r*0.4, 0, Math.PI*2); ctx.fill();
+    for(const tree of blobs){
+      const x=Math.floor((tree.x-camera*0.45)/4)*4;
+      ctx.fillStyle=pal.pillar;ctx.fillRect(x,280,12,230);
+      for(let i=0;i<5;i++){
+        const y=190+i*36,w=40+i*24;
+        ctx.fillStyle=i%2?pal.moss:pal.hill;ctx.fillRect(x-w/2,y,w,32);
+        ctx.fillStyle=pal.leaf;ctx.fillRect(x-w/2,y,Math.max(8,w/3),4);
       }
-      ctx.fillStyle=pal.deep+'aa';
-      ctx.fillRect(x-4, c.baseY+10, 8, 90);
     }
   };
   ART.drawWaterBand = function(ctx, view, camera, t, pal){
@@ -349,6 +338,57 @@ function gameClient() {
     ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
     ctx.closePath();
   }
+
+  // Hand-authored sprite grids share one four-world-unit pixel scale.
+  function sprite(rows,x,y,colors,unit=4,flip=false){
+    const w=rows[0].length*unit;
+    rows.forEach((row,j)=>[...row].forEach((c,i)=>{
+      if(colors[c]){ctx.fillStyle=colors[c];ctx.fillRect(Math.round(x+(flip?w-(i+1)*unit:i*unit)),Math.round(y+j*unit),unit,unit);}
+    }));
+  }
+  ART.drawRobotCourier = function(ctx,x,y,facing,pose,t){
+    const step=pose==='run'&&Math.floor(t*10)%2;
+    const rows=['...oooo...','..otttto..','..owwwwo..','..otttto..','...oooo...','.rrrrrrr..','ooottttooo','otttttttoo','ootggttoo.','..otttto..','..oooooo..',pose==='jump'?'.oo....oo.':step?'..oo..oo..':'..oo..oo..',pose==='jump'?'..........':step?'.ooo..oo..':'..oo..ooo.'];
+    ctx.save();ctx.translate(x,y-20);ctx.scale(0.85,48/52);
+    sprite(rows,-20,0,{o:'#10162c',t:'#42cbb5',w:'#e2fff0',r:'#ed7853',g:'#ffe08a'},4,facing<0);
+    ctx.restore();
+    ctx.fillStyle='#ed7853';ctx.fillRect(x+(facing<0?12:-36),y+4+(step?4:0),20,4);
+  };
+  ART.drawBeetle = function(ctx,x,y,facing,t){
+    sprite(['..ooooo..','.opppppo.','opphhpppo','oppppppro','.ooooooo.',Math.floor(t*8)%2?'oo..oo.oo':'.oo.oo.oo'],x-18,y-12,{o:'#18152e',p:'#9951a9',h:'#df89ce',r:'#ffe08a'},4,facing<0);
+  };
+  ART.drawDrone = function(ctx,x,y,t,alert){
+    sprite(['ooo...ooo','...ooo...','..ottto..','.ottwtto.','..ooooo..','...o.o...'],x-18,y-12,{o:'#17172f',t:'#6b96b4',w:alert?'#ff765e':'#ffdf87'});
+  };
+  ART.drawCollectibleCoin = function(ctx,x,y,t){
+    sprite(['.ooo.','oyywo','oyywo','oyyyo','.ooo.'],x-10,y-10+Math.floor(Math.sin(t*3+x)*2)*2,{o:'#9d632d',y:'#ffc75b',w:'#fff0b3'});
+  };
+  ART.drawCollectibleShard = function(ctx,x,y,t){
+    sprite(['...w...','..wvw..','.wvvvw.','wvvvvvw','.wvvvw.','..wvw..','...w...'],x-14,y-14,{w:'#e6d5ff',v:'#a080e8'});
+  };
+  ART.drawGuardian = function(ctx,g,t,phase){
+    const light=phase==='vulnerable'?'#7cf0ff':phase==='attack'?'#ff463e':phase==='telegraph'?'#ffbd69':'#c16983';
+    ctx.save();ctx.translate(Math.round(g.x),Math.round(g.y));ctx.scale(g.w/48,g.h/48);
+    sprite(['..o.o..o.o..','..orroorro..','..orrrrrro..','.orrhhhhrro.','oorrrrrrrroo','orrrllllrrro','orrrllllrrro','oorrrrrrrroo','.orrhhhhrro.','..orrrrrro..','..ooo..ooo..','.oooo..oooo.'],0,0,{o:'#160e25',r:'#633047',h:'#97506b',l:light});
+    ctx.restore();
+    if(phase==='telegraph'){ctx.fillStyle=light;ctx.fillRect(g.x+g.w/2-3,g.y-24,6,12);ctx.fillRect(g.x+g.w/2-3,g.y-8,6,4);}
+  };
+  ART.drawTerrainGround = function(ctx,s,t,pal){
+    ctx.fillStyle=pal.deep;ctx.fillRect(s.x,s.y,s.w,s.h);
+    for(let y=s.y+8;y<s.y+s.h;y+=20)for(let x=s.x;x<s.x+s.w;x+=32){
+      ctx.fillStyle=(Math.floor((x-s.x)/32+(y-s.y)/20)%3)?pal.ground:pal.mid;
+      ctx.fillRect(x+2,y,Math.min(28,s.x+s.w-x-2),16);
+      ctx.fillStyle=pal.pillar;ctx.fillRect(x+4,y+2,Math.min(8,s.x+s.w-x-4),2);
+    }
+    ctx.fillStyle=pal.edge;ctx.fillRect(s.x,s.y,s.w,4);
+    ctx.fillStyle=pal.moss;ctx.fillRect(s.x,s.y+4,s.w,6);
+    for(let x=s.x+8;x<s.x+s.w-8;x+=24){ctx.fillStyle=pal.leaf;ctx.fillRect(x,s.y+4,8,8);}
+  };
+  ART.drawTerrainPlatform = function(ctx,s,t,pal){
+    ctx.fillStyle=pal.deep;ctx.fillRect(s.x,s.y,s.w,s.h);
+    ctx.fillStyle=pal.edge;ctx.fillRect(s.x,s.y,s.w,4);
+    for(let x=s.x+4;x<s.x+s.w-4;x+=16){ctx.fillStyle=pal.pillar;ctx.fillRect(x,s.y+6,Math.min(12,s.x+s.w-x),Math.max(2,s.h-8));}
+  };
 
   /* ---------------- Campaign / stage data ---------------- */
   function layout(lengths, gap){
@@ -697,6 +737,8 @@ function gameClient() {
   const keyActions = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Space: 'jump', KeyW: 'jump', ShiftLeft: 'dash', ShiftRight: 'dash', KeyX: 'dash' };
   const physicalKeys = new Set();
   window.addEventListener('keydown', event => {
+    if(event.code==='KeyF'&&!event.repeat){event.preventDefault();toggleFullscreen();return;}
+    if(event.code==='Escape'&&expanded){setExpanded(false);return;}
     const action = keyActions[event.code]; if (!action) return;
     if (state !== 'playing') return;
     event.preventDefault();
@@ -743,22 +785,23 @@ function gameClient() {
   }
   function resize() {
     const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
+
     const scale = Math.min(rect.width / 600, rect.height / SCENE.height);
     viewWidth = Math.min(stage.width, rect.width / scale);
     viewHeight = viewWidth * rect.height / rect.width;
+    canvas.width = Math.round(viewWidth / 2);
+    canvas.height = Math.round(viewHeight / 2);
+    ctx.imageSmoothingEnabled = false;
     updateCamera();
     draw();
   }
   function rect(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); }
   function circle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
-  function label(text, x, y, size, color) { ctx.fillStyle = color; ctx.font = '600 ' + size + 'px system-ui'; ctx.fillText(text, x, y); }
+  function label(text, x, y, size, color) { ctx.fillStyle = color; ctx.font = '600 ' + size + 'px monospace'; ctx.fillText(text, x, y); }
   function drawRobot() {
     const p = player;
     if(shield){ctx.strokeStyle='#7cf0ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x+17,p.y+24,34,0,Math.PI*2);ctx.stroke();}
-    ctx.save();ctx.translate(p.x+p.w/2,p.y+20);ctx.scale(1,0.6);
+    ctx.save();ctx.translate(p.x+p.w/2,p.y+20);ctx.scale(1,1);
     ART.drawRobotCourier(ctx,0,0,p.facing,!p.grounded?'jump':p.vx?'run':'idle',elapsed);ctx.restore();
   }
   function star(x,y,r,color) {
@@ -800,6 +843,29 @@ function gameClient() {
     for(const q of particles){ctx.globalAlpha=Math.min(1,q.life*2);rect(q.x,q.y,4,4,q.color);}ctx.globalAlpha=1;
     ctx.restore();
   }
+  const fullscreenButton=document.getElementById('fullscreen');
+  const gameShell=document.getElementById('game-shell');
+  let expanded=false;
+  function syncFullscreen(){
+    const active=!!document.fullscreenElement||expanded;
+    fullscreenButton.textContent=active?'EXIT FULLSCREEN':'FULLSCREEN';
+    fullscreenButton.setAttribute('aria-pressed',String(active));
+    clearInput();physicalKeys.clear();resize();
+  }
+  function setExpanded(value){
+    expanded=value;gameShell.classList.toggle('expanded',value);syncFullscreen();
+  }
+  async function toggleFullscreen(){
+    try{
+      if(document.fullscreenElement){await document.exitFullscreen();}
+      else if(expanded){setExpanded(false);}
+      else if(gameShell.requestFullscreen){await gameShell.requestFullscreen();}
+      else {setExpanded(true);toast('Expanded view · browser controls may remain visible');}
+    }catch(error){setExpanded(true);toast('Expanded view · native fullscreen is unavailable');}
+    syncFullscreen();
+  }
+  fullscreenButton.addEventListener('click',toggleFullscreen);
+  document.addEventListener('fullscreenchange',syncFullscreen);
   window.addEventListener('resize', resize);
   document.getElementById('restart').addEventListener('click', onEndButton);
   loadStage(0);
@@ -816,7 +882,15 @@ const page = `<!doctype html>
 
 html,body{background:#0d1130;color:#f2ecff}.hud{padding:14px 18px;background:#111a35dc;border:1px solid #637da333;border-radius:14px;align-items:center}.brand{font-size:12px;letter-spacing:2px}.stats{font-size:14px;gap:18px}#coins{color:#ffcf6b}#lives{color:#7cf0ff}.journey{position:absolute;top:max(90px,calc(env(safe-area-inset-top) + 76px));left:42px;font-size:10px;letter-spacing:1.5px;color:#b7c3dd;pointer-events:none}.track{margin:10px 0;width:220px;height:3px;background:#38405c}#progress{height:3px;background:#7cf0ff}.powers{display:flex;gap:16px;letter-spacing:0;font-size:12px}.chip{color:#8791ac}.chip.active{color:#7cf0ff}#shards{color:#c7bcff}#toast{position:absolute;top:180px;left:50%;transform:translateX(-50%);width:max-content;max-width:90%;padding:10px 16px;background:#192a42ed;border:1px solid #7cf0ff55;border-radius:10px;text-align:center;font-size:13px;pointer-events:none}.help{color:#a6b7ce}.card{background:#151b36;border-color:#7cf0ff55;box-shadow:0 20px 70px #0008}.card h1{font-size:36px;letter-spacing:-1px}.card p{color:#b7c3dd}.card button{background:#7cf0ff;color:#0d1130}.overlay{background:#080f26bb}.touch-controls button{background:#192a42ed;border-color:#7cf0ff66;color:#dffbff}.touch-controls .jump{background:#32647a}.touch-controls .dash{background:#7a4a32}.touch-controls button.pressed{background:#458b94}@media(max-width:760px){.hud{padding:12px;left:12px;right:12px;gap:8px}.brand{font-size:9px;letter-spacing:1px;max-width:105px}.stats{font-size:12px;gap:12px}.journey{left:25px;top:90px}.powers{gap:12px;font-size:11px}#toast{top:162px;font-size:12px}}@media(max-height:450px){.journey{top:75px}.powers{font-size:10px}.track{margin:6px 0}#toast{top:115px}.hud{top:10px}.card{padding:20px}}
 @media(max-width:420px){.touch-controls{left:12px;right:12px}.directions,.actions{gap:8px}.touch-controls button{width:58px;height:62px}.touch-controls .dash{width:58px}.touch-controls .jump{width:70px}}
-</style></head><body><main aria-label="Moonlight Courier game">
+/* Pixel-art presentation: nearest-neighbor scene, crisp interface borders. */
+canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+html,body,button,.card button{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.hud,.card,.card button,.touch-controls button,#toast{border-radius:0;box-shadow:4px 4px 0 #060b1c;border-width:2px}
+.overlay{backdrop-filter:none}.brand{letter-spacing:2px}.track,#progress{height:4px}
+#fullscreen{position:absolute;right:24px;top:max(88px,calc(env(safe-area-inset-top) + 74px));z-index:5;background:#17233e;color:#dffbff;border:2px solid #7cf0ff88;padding:10px 12px;font:700 11px ui-monospace,monospace;cursor:pointer;touch-action:manipulation;box-shadow:3px 3px #060b1c}
+#fullscreen:focus-visible{outline:3px solid #ffcf6b;outline-offset:3px}main:fullscreen,main.expanded{width:100vw;height:100dvh;max-width:none;max-height:none;background:#0d1130}main.expanded{position:fixed;inset:0;z-index:10}@media(max-width:760px){#fullscreen{right:12px;font-size:0;width:36px;height:34px;padding:0}#fullscreen::after{content:"⛶";font-size:22px}#fullscreen[aria-pressed="true"]::after{content:"×"}}@media(max-height:450px){#fullscreen{top:74px}}
+</style></head><body><main id="game-shell" aria-label="Moonlight Courier game">
+<button id="fullscreen" type="button" aria-label="Toggle fullscreen" aria-pressed="false">FULLSCREEN</button>
 <canvas id="game" tabindex="-1" aria-label="A robot platformer. Move with A and D or arrow keys; jump with Space or W; dash with Shift or X."></canvas>
 <header class="hud"><span class="brand">MOONLIGHT COURIER</span><div class="stats"><span id="coins">Coins: 0</span><span id="lives">Lives: 3</span></div></header>
 <div class="journey"><span id="route"></span><div class="track"><div id="progress"></div></div><div class="powers"><span id="shards">✦ 0/0</span><span class="chip" id="shield"></span><span class="chip" id="leap"></span></div></div><div id="toast" role="status"></div>
