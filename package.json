@@ -2,7 +2,7 @@
   "name": "little-bolt-platformer",
   "version": "1.0.0",
   "private": true,
-  "description": "A single-level canvas platformer starring a little robot.",
+  "description": "An original five-stage canvas platformer with dash, power-ups and a guardian encounter.",
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/*.test.cjs",

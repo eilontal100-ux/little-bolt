@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moonlight Courier — art prototype</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05060f;font-family:system-ui,sans-serif}
+  body{display:flex;align-items:center;justify-content:center}
+  #stage{position:relative;background:#05060f;box-shadow:0 40px 120px #000a;transition:width .35s ease,height .35s ease}
+  #stage.desktop{width:min(96vw,1180px);height:min(88vh,700px)}
+  #stage.phone{width:min(94vw,390px);height:min(88vh,780px);border-radius:28px;overflow:hidden;border:6px solid #14172a}
+  canvas{display:block;width:100%;height:100%}
+
+  /* --- production HUD (restrained, top-left pill) --- */
+  .hud{position:absolute;left:max(14px,env(safe-area-inset-left));top:max(14px,env(safe-area-inset-top));display:flex;align-items:center;gap:10px;padding:6px 12px 6px 6px;background:#0e1226cc;border:1px solid #7cf0ff2e;border-radius:999px;backdrop-filter:blur(6px);pointer-events:none}
+  .hud .badge{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4,#ffcf6b 60%,#a8781f 100%);box-shadow:0 0 6px #ffcf6b88}
+  .hud .stat{display:flex;align-items:center;gap:5px;font:700 12px/1 system-ui;color:#f2ecff;letter-spacing:.3px}
+  .hud .lives{display:flex;gap:5px;margin-left:4px;padding-left:8px;border-left:1px solid #7cf0ff2e}
+  .hud .life{width:8px;height:8px;border-radius:50%;background:#2c3358}
+  .hud .life.on{background:#7cf0ff;box-shadow:0 0 6px #7cf0ff}
+  .routepill{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));font:600 10px/1 system-ui;letter-spacing:1.5px;color:#9fb0d6;background:#0e1226b0;padding:6px 10px;border-radius:8px;pointer-events:none}
+  #stage.phone .hud{padding:5px 10px 5px 5px;gap:7px}
+  #stage.phone .hud .stat{font-size:11px}
+  #stage.phone .routepill{font-size:9px;letter-spacing:1px}
+
+  /* --- prototype-only tool strip (NOT part of shipped art; clearly separated) --- */
+  .protobar{position:fixed;right:14px;bottom:14px;display:flex;gap:8px;z-index:9;font:600 11px system-ui}
+  .protobar button{padding:8px 12px;border-radius:10px;border:1px dashed #ffb35a88;background:#1a1330dd;color:#ffd9a0;cursor:pointer}
+  .protobar button.active{background:#ffb35a;color:#241300;border-style:solid}
+  .protolabel{position:fixed;right:14px;bottom:56px;font:600 10px system-ui;color:#ffb35a99;letter-spacing:1px;z-index:9}
+</style>
+</head>
+<body>
+<div id="stage" class="desktop">
+  <canvas id="art" tabindex="-1"></canvas>
+  <div class="hud" id="hud">
+    <span class="badge" id="hud-coin-badge"></span>
+    <span class="stat" id="hud-coin">12</span>
+    <span class="stat lives"><span class="life on"></span><span class="life on"></span><span class="life on"></span></span>
+  </div>
+  <div class="routepill">01 · LANDING GLADE</div>
+</div>
+<div class="protolabel">PROTOTYPE TOOLS (not shipped art)</div>
+<div class="protobar">
+  <button id="btn-desktop" class="active">Desktop</button>
+  <button id="btn-phone">Phone</button>
+  <button id="btn-drag">Drag camera to scrub →</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+const canvas = document.getElementById('art');
+const ctx = canvas.getContext('2d');
+const stage = document.getElementById('stage');
+
+/* ============================================================
+   SCENE — world-space constants (mirrors server.js WORLD/solids
+   shape so this maps 1:1 onto the real game's coordinate system)
+   ============================================================ */
+const SCENE = { width: 3400, height: 640, groundY: 520 };
+
+// Solids use the exact {x,y,w,h} shape server.js already uses for
+// collision. Art functions read these directly so the bright edge
+// line always sits exactly on the real collision surface.
+const solids = [
+  {x:0,   y:520, w:760, h:120, kind:'ground'},
+  {x:960, y:520, w:640, h:120, kind:'ground'},
+  {x:1780,y:520, w:760, h:120, kind:'ground'},
+  {x:2720,y:520, w:680, h:120, kind:'ground'},
+  {x:420, y:400, w:150, h:24, kind:'platform'},
+  {x:1120,y:340, w:120, h:24, kind:'ruinPlatform'},
+  {x:1980,y:410, w:170, h:24, kind:'platform'},
+  {x:2260,y:330, w:110, h:24, kind:'ruinPlatform'},
+];
+
+const collectibles = [
+  {x:300, y:470, type:'coin'}, {x:520,y:355,type:'coin'}, {x:1160,y:300,type:'coin'},
+  {x:2040,y:365,type:'coin'}, {x:2300,y:285,type:'shard'}, {x:2860,y:465,type:'coin'},
+];
+
+const archBackdrops = [ {x:1500, scale:1.15}, {x:2980, scale:0.9} ];
+
+/* deterministic pseudo-random so decoration is stable across frames/resizes */
+function mulberry32(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* --- precomputed decoration (computed once, not per frame) --- */
+const stars = (()=>{const rnd=mulberry32(7);const a=[];for(let i=0;i<140;i++)a.push({x:rnd()*SCENE.width*1.4,y:rnd()*260,r:rnd()<0.15?1.8:0.9,phase:rnd()*10});return a;})();
+
+const farHills = (()=>{const rnd=mulberry32(11);const a=[];let x=-200;while(x<SCENE.width*1.3){const w=260+rnd()*180,peak=90+rnd()*70;a.push({x,w,peak});x+=w*0.62;}return a;})();
+
+const canopyBlobs = (()=>{
+  const rnd=mulberry32(23);const a=[];let x=-150;
+  while(x<SCENE.width*1.2){
+    const baseY=250+rnd()*130,spread=100+rnd()*90,n=4+Math.floor(rnd()*4);
+    const lobes=[];for(let i=0;i<n;i++)lobes.push({dx:(i-n/2)*spread*0.5+ (rnd()-0.5)*24,dy:(rnd()-0.5)*46,r:30+rnd()*36});
+    a.push({x,baseY,lobes});
+    x+=spread*1.15;
+  }
+  return a;
+})();
+
+const foregroundVines = (()=>{const rnd=mulberry32(31);const a=[];let x=80;while(x<SCENE.width){a.push({x,len:60+rnd()*90,sway:rnd()*Math.PI*2,leaves:2+Math.floor(rnd()*3)});x+=220+rnd()*260;}return a;})();
+
+function terrainTexture(seg){
+  const rnd=mulberry32(Math.floor(seg.x)+1);
+  const roots=[];for(let x=seg.x+14;x<seg.x+seg.w-14;x+=26+rnd()*14)roots.push({x,depth:14+rnd()*22,lean:(rnd()-0.5)*10});
+  const tufts=[];for(let x=seg.x+6;x<seg.x+seg.w-6;x+=16+rnd()*10)tufts.push({x,h:5+rnd()*9});
+  return {roots,tufts};
+}
+solids.forEach(s=>{ if(s.kind!=='ruinPlatform') s.tex=terrainTexture(s); });
+
+const beetle = {x:1260,min:1160,max:1420,dir:1,speed:38};
+const drone  = {x:2560,baseY:340,range:60,speed:0.6};
+
+/* ============================================================
+   Robot courier — scripted demo timeline (idle / run / jump)
+   In the real game these poses are driven by physics state:
+   pose = !grounded ? 'jump' : (vx!==0 ? 'run' : 'idle')
+   ============================================================ */
+const robotPath = [
+  {x:140, dur:1.6, pose:'idle'},
+  {x:760, dur:2.2, pose:'run'},
+  {x:900, dur:0.55,pose:'jump', arc:70},
+  {x:1080,dur:0.9, pose:'run'},
+  {x:1080,dur:1.2, pose:'idle'},
+  {x:400, dur:2.6, pose:'run', reverse:true},
+  {x:140, dur:1.0, pose:'idle'},
+];
+let robotState = {x:140,y:SCENE.groundY-64,facing:1,pose:'idle'};
+function updateRobotDemo(t){
+  const total = robotPath.reduce((s,p)=>s+p.dur,0);
+  let tm = t % total, acc=0, prev={x:robotPath[robotPath.length-1].x};
+  for(let i=0;i<robotPath.length;i++){
+    const seg=robotPath[i], from = i===0?robotPath[robotPath.length-1].x:robotPath[i-1].x;
+    if(tm <= acc+seg.dur){
+      const localT = (tm-acc)/seg.dur;
+      robotState.pose = seg.pose;
+      robotState.facing = seg.x >= from ? 1 : -1;
+      if(seg.pose==='jump'){
+        robotState.x = from + (seg.x-from)*localT;
+        robotState.y = SCENE.groundY-64 - Math.sin(localT*Math.PI)*seg.arc;
+      } else {
+        robotState.x = from + (seg.x-from)*localT;
+        robotState.y = SCENE.groundY-64;
+      }
+      return;
+    }
+    acc+=seg.dur;
+  }
+}
+
+/* ============================================================
+   ART — modular draw functions. Every function takes ctx first.
+   "world-space" functions assume ctx is already translated by
+   -camera (matches server.js's existing ctx.translate(-camera,0)
+   block). "screen-space" functions receive camera explicitly and
+   compute their own parallax offset — call these OUTSIDE that
+   translate block, same as today's background loops.
+   ============================================================ */
+const ART = {};
+
+// ---- screen-space (parallax) ----
+ART.drawSky = function(ctx, view, t){
+  const g = ctx.createLinearGradient(0,0,0,view.h);
+  g.addColorStop(0,'#070a1e'); g.addColorStop(0.55,'#0d1130'); g.addColorStop(1,'#181b3c');
+  ctx.fillStyle=g; ctx.fillRect(0,0,view.w,view.h);
+  // aurora glow bands
+  const bands=[{y:70,c:'#35e6c422'},{y:170,c:'#7c6bff1c'}];
+  for(const b of bands){const bg=ctx.createLinearGradient(0,b.y-60,0,b.y+60);bg.addColorStop(0,'#00000000');bg.addColorStop(0.5,b.c);bg.addColorStop(1,'#00000000');ctx.fillStyle=bg;ctx.fillRect(0,b.y-60,view.w,120);}
+};
+ART.drawStars = function(ctx, view, camera, t){
+  for(const s of stars){
+    const x = ((s.x - camera*0.05) % (view.w+60) + view.w+60) % (view.w+60);
+    if(s.y>view.h) continue;
+    const tw = 0.55+0.45*Math.sin(t*1.4+s.phase);
+    ctx.globalAlpha = tw; ctx.fillStyle='#dfe6ff'; ctx.beginPath(); ctx.arc(x,s.y,s.r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+};
+ART.drawMoon = function(ctx, view, t){
+  const mx = view.w*0.76, my = 96;
+  const halo = ctx.createRadialGradient(mx,my,10,mx,my,120);
+  halo.addColorStop(0,'#f6ead055'); halo.addColorStop(1,'#f6ead000');
+  ctx.fillStyle=halo; ctx.beginPath(); ctx.arc(mx,my,120,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#f6ead0'; ctx.beginPath(); ctx.arc(mx,my,46,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#0d1130'; ctx.beginPath(); ctx.arc(mx+16,my-10,40,0,Math.PI*2); ctx.fill();
+  // light shaft
+  ctx.save(); ctx.globalAlpha=0.05+0.02*Math.sin(t*0.6);
+  const shaft = ctx.createLinearGradient(mx,my,mx-70,view.h);
+  shaft.addColorStop(0,'#f6ead0'); shaft.addColorStop(1,'#f6ead000');
+  ctx.fillStyle=shaft; ctx.beginPath(); ctx.moveTo(mx-30,my); ctx.lineTo(mx+30,my); ctx.lineTo(mx+120,view.h); ctx.lineTo(mx-220,view.h); ctx.closePath(); ctx.fill();
+  ctx.restore();
+};
+ART.drawFarHills = function(ctx, view, camera){
+  ctx.fillStyle='#161d42';
+  for(const h of farHills){
+    const x = h.x - camera*0.12;
+    if(x+h.w<0 || x>view.w) continue;
+    ctx.beginPath(); ctx.moveTo(x,SCENE.groundY);
+    ctx.quadraticCurveTo(x+h.w*0.5, SCENE.groundY-h.peak, x+h.w, SCENE.groundY);
+    ctx.fill();
+  }
+};
+ART.drawArchitectureBackdrop = function(ctx, x, camera, scale, t){
+  const sx = x - camera*0.22;
+  const gy = SCENE.groundY;
+  ctx.save(); ctx.translate(sx, gy); ctx.scale(scale, scale);
+  ctx.fillStyle='#232a52';
+  // two broken pillars + a partial arch, silhouette only (background read)
+  ctx.fillRect(-90,-190,26,190); ctx.fillRect(64,-230,26,230);
+  ctx.beginPath(); ctx.moveTo(-64,-190); ctx.quadraticCurveTo(-14,-270,90,-230); ctx.lineTo(90,-206); ctx.quadraticCurveTo(-14,-244,-64,-166); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha=0.5+0.25*Math.sin(t*1.1+x); ctx.fillStyle='#ffcf6b';
+  ctx.fillRect(-6,-150,4,60); ctx.globalAlpha=1;
+  ctx.restore();
+};
+ART.drawCanopyMid = function(ctx, view, camera, t){
+  for(const c of canopyBlobs){
+    const x = c.x - camera*0.42;
+    if(x<-160||x>view.w+160) continue;
+    for(const l of c.lobes){
+      const bob = Math.sin(t*0.5 + x*0.01 + l.dx) *2;
+      const cy = c.baseY+l.dy+bob;
+      ctx.fillStyle='#123f38';
+      ctx.beginPath(); ctx.arc(x+l.dx, cy+l.r*0.3, l.r*0.9, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle='#1f6b5c';
+      ctx.beginPath(); ctx.arc(x+l.dx, cy, l.r, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle='#2c8a72';
+      ctx.beginPath(); ctx.arc(x+l.dx-l.r*0.25, cy-l.r*0.3, l.r*0.4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle='#123f38aa';
+    ctx.fillRect(x-4, c.baseY+10, 8, 90);
+  }
+};
+ART.drawFogBand = function(ctx, view, camera, t){
+  const y = SCENE.groundY - 40 + Math.sin(t*0.3)*4;
+  const g = ctx.createLinearGradient(0,y-30,0,y+30);
+  g.addColorStop(0,'#0d113000'); g.addColorStop(0.5,'#7cf0ff14'); g.addColorStop(1,'#0d113000');
+  ctx.fillStyle=g; ctx.fillRect(0,y-30,view.w,60);
+};
+ART.drawForegroundVines = function(ctx, view, camera, t){
+  ctx.strokeStyle='#123f38'; ctx.lineWidth=5; ctx.lineCap='round';
+  for(const v of foregroundVines){
+    const x = v.x - camera*1.08;
+    if(x<-30||x>view.w+30) continue;
+    const sway = Math.sin(t*0.8+v.sway)*10;
+    ctx.beginPath(); ctx.moveTo(x,-4); ctx.quadraticCurveTo(x+sway,v.len*0.6, x+sway*0.6, v.len);
+    ctx.stroke();
+    for(let i=0;i<v.leaves;i++){
+      ctx.fillStyle='#1f6b5c';
+      const ly = v.len*0.35*(i+1);
+      ctx.beginPath(); ctx.ellipse(x+sway*(i/v.leaves), ly, 8,5, sway*0.05, 0, Math.PI*2); ctx.fill();
+    }
+  }
+};
+
+// ---- world-space (call inside ctx.translate(-camera,0)) ----
+ART.drawTerrainGround = function(ctx, s, t){
+  ctx.fillStyle='#241a3d'; ctx.fillRect(s.x, s.y, s.w, s.h);
+  // strata
+  ctx.fillStyle='#1a1330'; ctx.fillRect(s.x, s.y+38, s.w, s.h-38);
+  ctx.fillStyle='#150f26'; ctx.fillRect(s.x, s.y+78, s.w, s.h-78);
+  // collision edge — bright, unmistakable
+  ctx.save();
+  ctx.shadowColor='#35e6c4'; ctx.shadowBlur=10;
+  ctx.fillStyle='#8ff7de'; ctx.fillRect(s.x, s.y-2, s.w, 4);
+  ctx.restore();
+  ctx.fillStyle='#1f6b5c'; ctx.fillRect(s.x, s.y+2, s.w, 5);
+  // roots + moss tufts (precomputed, stable)
+  ctx.strokeStyle='#150f2699'; ctx.lineWidth=3;
+  for(const r of s.tex.roots){ ctx.beginPath(); ctx.moveTo(r.x,s.y+8); ctx.quadraticCurveTo(r.x+r.lean,s.y+r.depth*0.6, r.x+r.lean*1.6, s.y+r.depth); ctx.stroke(); }
+  for(const tf of s.tex.tufts){
+    ctx.fillStyle='#2c8a72';
+    ctx.beginPath();
+    ctx.moveTo(tf.x-5,s.y+1);
+    ctx.quadraticCurveTo(tf.x-3,s.y-tf.h, tf.x, s.y-tf.h*0.7);
+    ctx.quadraticCurveTo(tf.x+3,s.y-tf.h, tf.x+5,s.y+1);
+    ctx.quadraticCurveTo(tf.x,s.y-tf.h*0.25, tf.x-5,s.y+1);
+    ctx.fill();
+  }
+};
+ART.drawTerrainPlatform = function(ctx, s, t){
+  ctx.fillStyle='#241a3d'; ctx.fillRect(s.x, s.y, s.w, s.h);
+  ctx.save(); ctx.shadowColor='#35e6c4'; ctx.shadowBlur=8;
+  ctx.fillStyle='#8ff7de'; ctx.fillRect(s.x, s.y-2, s.w, 3);
+  ctx.restore();
+  ctx.fillStyle='#150f26'; ctx.fillRect(s.x+6, s.y+s.h, s.w-12, 4);
+};
+ART.drawAncientPillarPlatform = function(ctx, s, t){
+  // ruined-pillar-top platform: same collision box, richer "premium ruin" read
+  ctx.fillStyle='#4b4d68'; ctx.fillRect(s.x, s.y, s.w, s.h);
+  ctx.fillStyle='#33344a'; ctx.fillRect(s.x, s.y+s.h*0.5, s.w, s.h*0.5);
+  ctx.save(); ctx.shadowColor='#ffcf6b'; ctx.shadowBlur=9;
+  ctx.fillStyle='#ffe9b0'; ctx.fillRect(s.x, s.y-2, s.w, 3);
+  ctx.restore();
+  ctx.strokeStyle='#20223399'; ctx.lineWidth=2;
+  for(let x=s.x+10;x<s.x+s.w-6;x+=18){ ctx.beginPath(); ctx.moveTo(x,s.y+2); ctx.lineTo(x-4,s.y+s.h-2); ctx.stroke(); }
+  ctx.fillStyle='#3fae7a99';
+  ctx.beginPath(); ctx.ellipse(s.x+s.w*0.2, s.y-6, 10,6,0,0,Math.PI*2); ctx.fill();
+};
+
+ART.drawCollectibleCoin = function(ctx, x, y, t){
+  const by = y + Math.sin(t*3+x)*3;
+  ctx.save(); ctx.translate(x,by);
+  ctx.fillStyle='#7a5a2a55'; ctx.beginPath(); ctx.arc(0,4,11,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#654d35'; ctx.beginPath(); ctx.arc(0,0,12,0,Math.PI*2); ctx.fill();
+  const g = ctx.createRadialGradient(-3,-3,1,0,0,10);
+  g.addColorStop(0,'#fff2c4'); g.addColorStop(1,'#ffcf6b');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,9,0,Math.PI*2); ctx.fill();
+  const shine = ((t*60+x)%40)/40;
+  ctx.globalAlpha = shine<0.5? (0.6-shine):0;
+  ctx.strokeStyle='#fffef0'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-9+shine*18,-9); ctx.lineTo(-3+shine*18,9); ctx.stroke();
+  ctx.restore();
+};
+ART.drawCollectibleShard = function(ctx, x, y, t){
+  ctx.save(); ctx.translate(x,y);
+  const pulse = 0.7+0.3*Math.sin(t*2.4);
+  ctx.globalAlpha = pulse*0.5;
+  ctx.fillStyle='#7c6bff'; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.rotate(Math.sin(t*0.8)*0.15);
+  ctx.fillStyle='#cdb8ff';
+  ctx.beginPath(); ctx.moveTo(0,-16); ctx.lineTo(9,-2); ctx.lineTo(5,16); ctx.lineTo(-5,16); ctx.lineTo(-9,-2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#efe6ffcc';
+  ctx.beginPath(); ctx.moveTo(0,-16); ctx.lineTo(9,-2); ctx.lineTo(0,2); ctx.closePath(); ctx.fill();
+  ctx.restore();
+};
+
+ART.drawBeetle = function(ctx, x, y, facing, t){
+  ctx.save(); ctx.translate(x,y); ctx.scale(facing,1);
+  const legPhase = t*10;
+  ctx.strokeStyle='#241633'; ctx.lineWidth=3; ctx.lineCap='round';
+  for(let i=0;i<3;i++){
+    const swing = Math.sin(legPhase+i*2)*6;
+    ctx.beginPath(); ctx.moveTo(-8+i*8,6); ctx.lineTo(-8+i*8+swing,16); ctx.stroke();
+  }
+  const shellGrad = ctx.createLinearGradient(-16,-14,16,10);
+  shellGrad.addColorStop(0,'#b23fae'); shellGrad.addColorStop(1,'#3a1f52');
+  ctx.fillStyle=shellGrad;
+  ctx.beginPath(); ctx.ellipse(0,-2,17,13,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#241633'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,-14); ctx.lineTo(0,10); ctx.stroke();
+  ctx.fillStyle='#ffffff33'; ctx.beginPath(); ctx.ellipse(-6,-8,6,3,-0.4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#ff5a5a'; ctx.beginPath(); ctx.arc(12,-4,2.6,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#ff5a5a55'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(13,-9); ctx.lineTo(19,-15); ctx.stroke();
+  ctx.restore();
+};
+ART.drawDrone = function(ctx, x, y, t, alert){
+  ctx.save(); ctx.translate(x,y);
+  if(alert){
+    const beam = ctx.createLinearGradient(0,10,0,150);
+    beam.addColorStop(0,'#66f0ff55'); beam.addColorStop(1,'#66f0ff00');
+    ctx.fillStyle=beam; ctx.beginPath(); ctx.moveTo(-4,10); ctx.lineTo(4,10); ctx.lineTo(26,150); ctx.lineTo(-26,150); ctx.closePath(); ctx.fill();
+  }
+  for(const dx of [-14,14]){
+    ctx.save(); ctx.translate(dx,-6); ctx.rotate(t*18);
+    ctx.strokeStyle='#9aa2bb99'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(-9,0); ctx.lineTo(9,0); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle='#394158'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(dx*0.5,0); ctx.lineTo(dx,-6); ctx.stroke();
+  }
+  const body = ctx.createLinearGradient(-13,-10,13,10);
+  body.addColorStop(0,'#4a5170'); body.addColorStop(1,'#2a3046');
+  ctx.fillStyle=body;
+  ctx.beginPath();
+  for(let i=0;i<6;i++){const a=i*Math.PI/3;const px=Math.cos(a)*14,py=Math.sin(a)*10;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = (Math.sin(t*8)>0)?'#ff5a5a':'#7a2a2a';
+  ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#66f0ffaa'; ctx.fillRect(-6,5,12,3);
+  ctx.restore();
+};
+
+ART.drawRobotCourier = function(ctx, x, y, facing, pose, t){
+  ctx.save(); ctx.translate(x,y); ctx.scale(facing,1);
+  const bob = pose==='idle' ? Math.sin(t*2.4)*2 : pose==='run' ? Math.abs(Math.sin(t*11))*3 : 0;
+  const legPhase = t*13;
+  const squash = pose==='jump' ? 0.9 : 1;
+  ctx.translate(0,bob);
+
+  // scarf (drawn first = behind body), trails opposite facing, whips more in run/jump
+  const trail = pose==='run'?1:pose==='jump'?1.4:0.5;
+  ctx.fillStyle='#ff9d5c';
+  ctx.beginPath();
+  ctx.moveTo(-6,-2);
+  ctx.quadraticCurveTo(-18-8*trail, 2+Math.sin(t*9)*4, -30-14*trail, 8+Math.sin(t*7)*6);
+  ctx.quadraticCurveTo(-20-8*trail, 10+Math.sin(t*9)*4, -10,6);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#7a3f22';
+  ctx.beginPath();
+  ctx.moveTo(-8,0); ctx.quadraticCurveTo(-20-9*trail, 4+Math.sin(t*9+1)*4, -32-16*trail, 12+Math.sin(t*7+1)*6);
+  ctx.lineWidth=3; ctx.strokeStyle='#7a3f22'; ctx.stroke();
+
+  // legs
+  ctx.strokeStyle='#123f38'; ctx.lineWidth=7; ctx.lineCap='round';
+  if(pose==='run'){
+    const s1=Math.sin(legPhase)*11, s2=Math.sin(legPhase+Math.PI)*11;
+    ctx.beginPath(); ctx.moveTo(-6,30); ctx.lineTo(-6+s1,44); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6,30); ctx.lineTo(6+s2,44); ctx.stroke();
+  } else if(pose==='jump'){
+    ctx.beginPath(); ctx.moveTo(-6,30); ctx.lineTo(-10,40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6,30); ctx.lineTo(10,40); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.moveTo(-6,30); ctx.lineTo(-6,44); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6,30); ctx.lineTo(6,44); ctx.stroke();
+  }
+
+  // chassis
+  ctx.scale(1,squash);
+  const chassis = ctx.createLinearGradient(-14,-4,14,26);
+  chassis.addColorStop(0,'#3df0cf'); chassis.addColorStop(1,'#159085');
+  ctx.fillStyle=chassis;
+  roundRect(ctx,-15,-4,30,32,8); ctx.fill();
+  ctx.fillStyle='#0e2a26'; roundRect(ctx,-13,4,26,14,4); ctx.fill();
+  ctx.fillStyle='#ffcf6b'; roundRect(ctx,-6,20,12,6,2); ctx.fill();
+
+  // head / visor dome
+  ctx.fillStyle='#10263a'; roundRect(ctx,-14,-28,28,26,10); ctx.fill();
+  const visor = ctx.createLinearGradient(-10,-22,10,-8);
+  visor.addColorStop(0,'#eafcff'); visor.addColorStop(1,'#7cf0ff');
+  ctx.fillStyle=visor; roundRect(ctx,-10,-22,20,12,5); ctx.fill();
+  ctx.fillStyle='#ffffffcc';
+  ctx.beginPath(); ctx.arc(-2+facing*0,-17+ (pose==='jump'?-2:0),2.4,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#0e2a26'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,-28); ctx.lineTo(0,-34); ctx.stroke();
+  ctx.fillStyle='#ffcf6b'; ctx.beginPath(); ctx.arc(0,-35,2.6,0,Math.PI*2); ctx.fill();
+
+  // arms
+  ctx.strokeStyle='#159085'; ctx.lineWidth=6; ctx.lineCap='round';
+  const armSwing = pose==='run'?Math.sin(legPhase+Math.PI)*14:pose==='jump'?-10:0;
+  ctx.beginPath(); ctx.moveTo(13,2); ctx.lineTo(19,14+armSwing*0.2); ctx.stroke();
+  ctx.restore();
+};
+
+// ---- HUD (restrained; small, corner-only, never blocks play area) ----
+ART.drawHUD = function(hudEl, state){
+  document.getElementById('hud-coin').textContent = state.coins;
+};
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+/* ============================================================
+   Runtime: resize (matches server.js's scale-to-fit approach),
+   camera (auto-pan or manual drag scrub), main draw()
+   ============================================================ */
+let viewWidth = 960, viewHeight = 600, camera = 0;
+let autoCamera = true, dragActive = false, dragLastX = 0, idleTimer = 0;
+
+function resize(){
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  canvas.width = Math.round(rect.width*dpr);
+  canvas.height = Math.round(rect.height*dpr);
+  const scale = Math.min(rect.width/600, rect.height/SCENE.height);
+  viewWidth = Math.min(SCENE.width, rect.width/scale);
+  viewHeight = viewWidth * rect.height/rect.width;
+}
+window.addEventListener('resize', resize);
+
+canvas.addEventListener('pointerdown', e=>{dragActive=true; dragLastX=e.clientX; autoCamera=false; canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove', e=>{
+  if(!dragActive) return;
+  const rect=canvas.getBoundingClientRect();
+  const worldPerPixel = viewWidth/rect.width;
+  camera = Math.max(0, Math.min(SCENE.width-viewWidth, camera - (e.clientX-dragLastX)*worldPerPixel));
+  dragLastX=e.clientX; idleTimer=0;
+});
+canvas.addEventListener('pointerup', ()=>{dragActive=false;});
+canvas.addEventListener('pointercancel', ()=>{dragActive=false;});
+
+document.getElementById('btn-desktop').addEventListener('click', ()=>{stage.className='desktop'; setActive('btn-desktop'); resize();});
+document.getElementById('btn-phone').addEventListener('click', ()=>{stage.className='phone'; setActive('btn-phone'); resize();});
+function setActive(id){ ['btn-desktop','btn-phone'].forEach(b=>document.getElementById(b).classList.toggle('active', b===id)); }
+
+let t0 = performance.now();
+function draw(t){
+  if(autoCamera){ camera = (SCENE.width-viewWidth)*0.5*(1+Math.sin(t*0.09)); }
+  else { idleTimer += 1/60; if(idleTimer>4) autoCamera=true; }
+
+  updateRobotDemo(t);
+  beetle.x += beetle.dir*beetle.speed*(1/60);
+  if(beetle.x>beetle.max){beetle.x=beetle.max;beetle.dir=-1;}
+  if(beetle.x<beetle.min){beetle.x=beetle.min;beetle.dir=1;}
+  const droneY = drone.baseY + Math.sin(t*drone.speed)*drone.range;
+
+  const view = {w:viewWidth, h:viewHeight};
+  ctx.setTransform(canvas.width/viewWidth, 0, 0, canvas.height/viewHeight, 0, 0);
+  ctx.clearRect(0,0,viewWidth,viewHeight);
+
+  ART.drawSky(ctx, view, t);
+  ART.drawStars(ctx, view, camera, t);
+  ART.drawMoon(ctx, view, t);
+  ART.drawFarHills(ctx, view, camera);
+  for(const a of archBackdrops) ART.drawArchitectureBackdrop(ctx, a.x, camera, a.scale, t);
+  ART.drawCanopyMid(ctx, view, camera, t);
+  ART.drawFogBand(ctx, view, camera, t);
+
+  ctx.save(); ctx.translate(-camera,0);
+  for(const s of solids){
+    if(s.x+s.w<camera-60||s.x>camera+viewWidth+60) continue;
+    if(s.kind==='ground') ART.drawTerrainGround(ctx, s, t);
+    else if(s.kind==='ruinPlatform') ART.drawAncientPillarPlatform(ctx, s, t);
+    else ART.drawTerrainPlatform(ctx, s, t);
+  }
+  for(const c of collectibles){
+    if(c.type==='coin') ART.drawCollectibleCoin(ctx, c.x, c.y, t);
+    else ART.drawCollectibleShard(ctx, c.x, c.y, t);
+  }
+  ART.drawBeetle(ctx, beetle.x, SCENE.groundY-14, beetle.dir, t);
+  ART.drawDrone(ctx, drone.x, droneY, t, true);
+  ART.drawRobotCourier(ctx, robotState.x, robotState.y, robotState.facing, robotState.pose, t);
+  ctx.restore();
+
+  ART.drawForegroundVines(ctx, view, camera, t);
+
+  requestAnimationFrame(draw);
+}
+resize();
+requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
