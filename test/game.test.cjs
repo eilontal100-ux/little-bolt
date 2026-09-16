@@ -54,14 +54,14 @@ test('every required gap in every non-boss stage can be crossed at normal moveme
 });
 test('reaching the stage flag completes the stage without ending the campaign',()=>{
  const g=harness();g.player.x=210;tick(g);
- g.player.x=g.api.stage.flagX-5;g.player.y=452;tick(g);
+ g.api.seals.forEach(s=>s.active=true);g.player.x=g.api.stage.flagX-5;g.player.y=452;tick(g);
  assert.equal(g.api.state,'stageComplete');assert.match(g.elements['end-title'].textContent,/Stage clear/);assert.equal(g.elements.restart.textContent,'Next Stage →');
  const x=g.player.x;g.keys.add('right');tick(g,60);assert.equal(g.player.x,x);
 });
 test('Next Stage preserves campaign totals and resets stage-scoped entities/checkpoints',()=>{
  const g=harness();g.player.x=210;tick(g);
  g.player.x=730;tick(g);assert.equal(g.api.checkpoint,0);
- g.player.x=g.api.stage.flagX-5;g.player.y=452;tick(g);
+ g.api.seals.forEach(s=>s.active=true);g.player.x=g.api.stage.flagX-5;g.player.y=452;tick(g);
  g.api.nextStage();
  assert.equal(g.api.stageIndex,1);assert.equal(g.api.state,'playing');
  assert.equal(g.api.coinCount,1);assert.equal(g.api.lives,3);
@@ -72,7 +72,7 @@ test('Next Stage preserves campaign totals and resets stage-scoped entities/chec
 });
 test('full campaign restart resets stage index, totals and lives',()=>{
  const g=harness();g.player.x=210;tick(g);
- g.player.x=g.api.stage.flagX-5;g.player.y=452;tick(g);
+ g.api.seals.forEach(s=>s.active=true);g.player.x=g.api.stage.flagX-5;g.player.y=452;tick(g);
  g.api.nextStage();
  g.api.player.x=g.api.coins[0].x;tick(g);
  g.api.restart();
@@ -119,7 +119,7 @@ test('powerups and fragments fully reset on Next Stage and on full restart',()=>
  const g=harness();g.player.x=780;g.player.y=452;tick(g);
  Object.assign(g.player,{x:1000,y:310,grounded:false});tick(g);
  assert.equal(g.api.shards[0].collected,true);assert.equal(g.api.fragmentCount,1);
- g.player.x=g.api.stage.flagX-5;g.player.y=452;tick(g);g.api.nextStage();
+ g.api.seals.forEach(s=>s.active=true);g.player.x=g.api.stage.flagX-5;g.player.y=452;tick(g);g.api.nextStage();
  assert.equal(g.api.shield,false);assert.ok(g.api.pickups.every(p=>!p.taken));assert.equal(g.api.fragmentCount,1);
  g.api.restart();assert.equal(g.api.fragmentCount,0);
 });
