@@ -1,42 +1,38 @@
-# Moonlight Courier — The Five Beacons
+# Duneshade Warden
 
-An original, compact five-stage browser platformer: Whispering Forest, Flooded Ruins, Wind Canopy, Star Observatory, and Guardian Spire. Carry the star through eight required gaps, collect 37 coins and four optional fragments, and defeat the guardian. Pixel-art sprites, tiled terrain, a retro HUD, layered scenery, an animated scarf-wearing courier, beetles, drones, moving platforms, checkpoints, shield and double-jump pickups are all self-contained.
+An original five-stage desert platformer with a cloaked human adventurer, sandstone tiles, market awnings, palace towers, scarabs, sand wraiths, and a Sun Colossus. Characters use authored pixel grids and distinct idle/run/jump/throw poses; the canvas is no longer downsampled to simulate pixel art.
+
+The four exploration stages are Canyon Outskirts, Buried Cistern, Silk Bazaar, and Astral Palace (4,060–4,180 world units each), followed by the Sun Throne boss arena. Each exploration stage has three required sun seals, five gaps, elevated relic routes, moving platforms, enemy encounters and three checkpoints. There are 73 coins and eight optional relic fragments across the campaign. The extra sections add objectives and encounters; no playtime claim has been verified.
 
 ## Run
 
 ```sh
-npm install
+npm ci
 npm start
 ```
 
-Open http://localhost:3000. The single-file Node/Express server binds to `0.0.0.0` and uses `process.env.PORT || 3000`.
+Open http://localhost:3000. This single-file Node/Express app listens on `process.env.PORT || 3000` at `0.0.0.0`. No external assets, fonts, accounts or database are required.
 
 ## Play
 
-- Fullscreen: click FULLSCREEN or press F. Press Escape to leave native fullscreen. Browsers without fullscreen support use an expanded game view; F, Escape, or the button exits it. Browser controls may remain visible in this fallback.
-- Move: arrows or A/D. Jump: Space or W; hold for height, release for a short hop.
-- Dash: Shift or X, with a 0.9-second cooldown. Dash does not grant invulnerability or damage enemies.
-- Phone: independent direction, DASH, and JUMP buttons support simultaneous touches.
-- Jump onto enemies from above. Side contact costs a life. A shield absorbs one hit, but not a fall.
-- Starleap grants one extra air jump for 12 seconds. Checkpoints preserve collectibles and defeated enemies when you respawn.
-- Reach each star gate and choose Next Stage. Campaign totals and remaining lives carry forward; powers and checkpoints reset per stage.
-- Guardian: red warns of a charge; evade it, then stomp its crown when cyan. Three successful stomps win. Boss damage persists across life loss. Both ending buttons restart the whole campaign.
+- Move: arrows or A/D. Jump: Space/W; hold for height, release for a short hop.
+- Throw a returning glaive: C/K or the phone THROW button. It defeats scarabs/wraiths and lights sun seals. One glaive at a time; it returns automatically and can pass through terrain.
+- Light all three seals before reaching each stage gate. Climb the bright-edged ledges to reach the upper seals. HUD tracks the seal count. Select Next Stage after completing the objective.
+- Dash: Shift/X or DASH, with a 0.9-second cooldown. Dash is not invulnerability.
+- Fullscreen: button or F. Escape exits. Unsupported/rejected fullscreen uses a reversible expanded view.
+- Shield absorbs one enemy hit, not a fall. Double jump grants a second air jump for 12 seconds. Optional upper routes hold relic fragments.
+- Checkpoints preserve lit seals, collected items, defeated enemies and boss damage when losing a life. Throws clear on death. Stage transitions reset seals and powers; a new campaign resets everything.
+- Sun Colossus: evade the telegraphed charge, then throw or stomp while its core is gold. Three hits win. Contact during charging costs a life.
+- Mobile has independent direction, THROW, DASH and JUMP buttons for simultaneous touches.
 
-## Verify
+## Verification
 
-```sh
-npm test
-npm run test:browser
-```
+`npm test` covers movement, required gap crossing, seal-ledges, glaive hits/return, locked exits, reset behavior, boss vulnerability, fullscreen fallback, and server startup. The browser integration script (`npm run test:browser`) uses Playwright and controlled positions for seal/transition checks; it is not an end-to-end unassisted playthrough. Run it only in an environment authorized to launch an isolated browser.
 
-Unit/server checks cover movement, collisions, all required gaps without powers, checkpoint and campaign transitions, dash cooldown/wall collisions, moving-platform carry, power-ups, guardian phases/stomps, and restart behavior. The browser suite uses an isolated headless installed Google Chrome and checks desktop/phone layouts, real CDP multitouch, keyboard controls, a five-stage keyboard playthrough including the guardian, and both restart buttons. Screenshots are written to `test-results/`.
+For this update, 37 automated checks passed and the mounted browser rendered the desktop game successfully. The legacy Playwright browser suite has been updated but was not rerun because this session uses mounted browser tools. Independent review is unavailable: Pixel's implementation timed out and the team handoff lifetime limit blocked further requests. Physical phone/Safari and overall campaign playtime remain unverified.
 
-Set `PLAYWRIGHT_CHANNEL=chromium` to use installed Playwright Chromium. Set `TEST_URL` to check an already deployed copy. Browser test internals are injected only into an intercepted test response and are not shipped as a public debug API.
+Research used [Shovel Knight](https://old.yachtclubgames.com/shovel-knight-treasure-trove/) and [Eastward](https://chucklefish.org/blog/eastward-launches-today-on-xbox-game-pass/) as references for silhouettes, architectural detail, readable foregrounds and objectives. All shipped sprites are original. See `PIXEL-REFERENCE-NOTES.md` and `PIXEL-DIRECTIONS.md` for research and concepts; those concept documents include mechanics beyond the implemented scope.
 
-Physical iPhone/Safari has not been tested. This is a compact procedural-art campaign, not a commercial-length game. No audio, external assets, accounts, database, or persistent saves; reloading starts over. Pixel's independent review of this campaign is pending after its session limit. Earlier design documents describe previous iterations; this README describes the current implementation.
+## Deploy
 
-## Render
-
-`render.yaml` configures `npm ci`, `npm start`, and health check `/`. Merge the campaign pull request into `main`, then deploy on Render. No secrets or code changes are required; Render supplies `PORT`.
-
-Pixel-art/fullscreen update: automated tests cover fullscreen entry/exit, Escape synchronization, unsupported/rejected API fallback, and input clearing. Fresh visual verification was blocked by the mounted browser tool (endpoint ownership mismatch); physical-device fullscreen remains unverified.
+`render.yaml` uses `npm ci`, `npm start`, and health check `/`. Merge the pull request, then deploy on Render. Reloading restarts the campaign; no persistence or audio is implemented.
