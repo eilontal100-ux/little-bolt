@@ -1,35 +1,41 @@
-# Creature Call
+# Creature Call — The Skyheart Journey
 
-An original three-stage rescue platformer. You start as Crag, a stout creature that smashes rock barriers. Rescue Glint, who glides on marked wind currents, and Sprig, who grows vine bridges over seed gaps — then use each companion's ability to open the path the other two can't. Original hand-authored pixel sprites give each creature a distinct silhouette and idle, run, jump, and ability poses. Floating habitats, cloud gardens, and crystal grottos replace the desert setting. All artwork is embedded in the single-file server.
-
-Stages: Hollow Path (2700 units — teaches rescue, smash, glide, then grow, in a safe order), Windswept Terraces (2500 units), and Rootbound Ruins (3200 units). The second and third stages remix and combine all three abilities and each has an optional elevated relic-shard route. There are 21 coins and 3 relic shards across the campaign. Each stage ends at a habitat beacon; the third stage completes the campaign — there is no boss fight.
-
-## Run
-
-```sh
-npm ci
-npm start
-```
-
-Open http://localhost:3000. This single-file Node/Express app listens on `process.env.PORT || 3000` at `0.0.0.0`. No external assets, fonts, accounts, or database are required.
+An original creature-switching puzzle platformer: twelve expeditions across Mosslight Isles, Glasswater Coast, Copperfall Works and Aurora Heights. Hand-authored pixel sprites and scenery are embedded in a single Node/Express server; no external assets or game services are required.
 
 ## Play
 
-- Move: arrows or A/D. Jump: Space/W; hold for height, release for a short hop.
-- Ability: C/K, or the phone ABILITY button. Crag smashes a nearby rock barrier; Sprig grows a persistent vine bridge at a nearby seed node; Glint gets lift only while the ability is held *and* Glint is airborne *and* inside a marked wind current — release, land, or leave the current and normal gravity resumes immediately.
-- Switch companion: Q/E cycles between rescued companions, or press 1/2/3 to select Crag/Glint/Sprig directly, or use the phone SWITCH button. Switching is always allowed on the ground; switching in the air is also allowed, but it immediately clears any active glide so it can't be used to cheat extra lift.
-- Rock barriers are tall walls a plain jump cannot clear. Wind gaps are wide ravines only Glint can cross. Seed gaps are wide too, and have a solid ceiling overhead specifically so gliding can't be used to skip growing the bridge — Sprig is required.
-- Every companion is rescued by simply walking into them before their ability is ever needed to progress.
-- Fullscreen: button or F. Escape exits. Unsupported/rejected fullscreen uses a reversible expanded view.
-- Checkpoints preserve rescued companions and already-solved obstacles (smashed rocks, grown bridges) when you lose a life. A full restart resets the whole campaign back to just Crag.
-- Mobile has independent direction, SWITCH, ABILITY, and JUMP buttons for simultaneous touches.
+```sh
+npm install
+npm start
+```
+
+Open http://localhost:3000. `PORT` overrides the 3000 fallback. Render can use `npm install` as build command and `npm start` as start command.
+
+Move with arrows/A/D, jump with Space/W, use an ability with C/K, switch with Q/E or 1–6, and toggle fullscreen with F. Phone controls provide movement, jump, switch and ability buttons. Open **Map / Guide** to pause, revisit unlocked levels, or read the creature guide. The start screen offers **Play / return**, **Resume saved journey**, and a confirmed **New journey** action.
+
+| Creature | Ability | Acquisition |
+|---|---|---|
+| Crag | Smash tall stone barriers | Starting companion |
+| Glint | Hold ability while airborne in a powered wind current | Level 1 |
+| Sprig | Grow lasting vine bridges at seed nodes | Level 1 |
+| Cinder | Burn thorn walls | Level 4 |
+| Floe | Freeze water into a temporary solid crossing | Level 5 |
+| Volt | Charge relays powering matching lettered gates and wind | Level 6 |
+
+The first three stages teach traversal. Later stages combine permanent terrain changes with temporary ice and linked electrical circuits. Timed obstacles can be retriggered; closing gates wait for an occupying player to leave. Every required obstacle must have been activated before its exit accepts completion. Upper platform routes contain optional relics.
+
+Retries preserve the roster, collected items, checkpoints and permanent solutions, including after exhausting three energy/life points. Browser-local saves use a versioned key and restore at a checkpoint; temporary machinery expires on reload. Completed stages remain available from the map. New journey clears campaign progress only after confirmation. Save failures do not stop gameplay. Saves are local to the browser and site origin, not cloud synced; this expansion does not import the earlier three-stage build's progress.
+
+## Artwork
+
+`CREATURE-ART.js` contains six independently authored sprite grids with idle/run/jump/ability poses, four layered architectural backdrops, and region-specific terrain materials. `CREATURE-ART.html` is a standalone preview. The same art function is embedded in `server.js`; tests verify the source stays synchronized. Inspiration: readable creature silhouettes in handheld Pokémon games and ability progression/secrets in Super Mario World. No commercial sprites, characters, maps or music are included.
 
 ## Verification
 
-`npm test` runs 31 automated checks covering movement/gravity/landing, platform collision, fixed-timestep determinism, camera clamp, coin collection, checkpoint respawn, jump buffering, ability-only traversal for each obstacle type (and proof the wrong or no companion cannot solve it), rescue-order correctness, hold/release glide physics, mid-air switch clearing an active glide, checkpoint/restart persistence of the roster and solved obstacles, solids being rebuilt fresh on every stage load (no reference leaks across a restart), stage completion/campaign-win flow, stage-width bounds, no-stuck-input on blur/visibility-change, fullscreen fallback, and server startup on `process.env.PORT`. All 31 pass. A scripted movement-and-ability traversal completes all three stages from spawn without teleporting or losing a life.
+```sh
+npm test
+```
 
-The integrated build passes the automated checks. Independent review was requested but blocked by the room handoff time limit. A full human campaign playthrough remains unverified.
+Coverage includes deterministic movement, ability restrictions, physical bridge support, circuit power/expiration, safe gate closing, rescue ordering, campaign exit requirements, retries, saves, map access, inputs and fullscreen. A deterministic movement-input test completes all twelve stages from spawn without teleporting or losing a life. Automated traversal is not a substitute for a human difficulty/play-feel assessment.
 
-## Deploy
-
-`render.yaml` uses `npm ci`, `npm start`, and health check `/`. Merge the pull request, then deploy on Render. Reloading restarts the campaign; no persistence or audio is implemented.
+Visual checks use the mounted OpenMausBot browser tools. Desktop and fixed portrait/landscape iframe viewports can be checked without changing the user's browser window. Real-device touch testing and independent teammate review are separate from the automated tests. The legacy `test/browser.cjs` is not used as evidence for this expansion.
