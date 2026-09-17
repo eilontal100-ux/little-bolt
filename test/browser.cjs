@@ -19,7 +19,7 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:4318';
   await page.addInitScript(()=>{window.requestAnimationFrame=()=>1;});
   await page.route(base+'/',async route=>{
    const source=process.env.TEST_URL?await(await route.fetch()).text():html;
-   await route.fulfill({contentType:'text/html',body:source.replace("window.addEventListener('resize', resize);", `window.test={update,restart,frame,get seals(){return seals},get glaive(){return glaive},get stage(){return stage},get stageIndex(){return stageIndex},get guardian(){return guardian},get player(){return player},get enemies(){return enemies},get coins(){return coins},get lives(){return lives},get state(){return state},get camera(){return camera},get viewWidth(){return viewWidth},keys,touches};window.addEventListener('resize', resize);`)});
+   await route.fulfill({contentType:'text/html',body:source.replace("window.addEventListener('resize', resize);", `window.test={update,restart,frame,get obstacles(){return obstacles},get current(){return current},get stage(){return stage},get stageIndex(){return stageIndex},get player(){return player},get coins(){return coins},get lives(){return lives},get state(){return state},get camera(){return camera},get viewWidth(){return viewWidth},keys,touches};window.addEventListener('resize', resize);`)});
   });
   await page.goto(base);
   const step=n=>page.evaluate(n=>{for(let i=0;i<n;i++)window.test.update(1/120)},n);
@@ -37,33 +37,14 @@ const base = process.env.TEST_URL || 'http://127.0.0.1:4318';
   await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});assert.equal((await snapshot()).touches,0);const x=(await snapshot()).x;await step(10);assert.equal((await snapshot()).x,x);
   await page.keyboard.down('ArrowRight');await page.evaluate(()=>window.dispatchEvent(new Event('blur')));assert.equal((await snapshot()).keys,0);await page.keyboard.up('ArrowRight');
   await page.evaluate(()=>test.restart());
-  const dash=await center('[data-action=dash]');await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...dash,id:3}]});await step(1);assert.equal(await page.evaluate(()=>test.player.vx),760);await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});await page.evaluate(()=>test.restart());
-  // Integration checks use controlled positions; required gap physics are covered by npm test.
-  for(let stageIndex=0;stageIndex<4;stageIndex++){
-   for(let sealIndex=0;sealIndex<3;sealIndex++){
-    await page.evaluate(i=>{const s=test.seals[i];Object.assign(test.player,{x:s.x-75,y:s.y-10,vy:0,facing:1,grounded:true});},sealIndex);
-    await page.keyboard.press('c');await step(20);
-    assert.equal(await page.evaluate(i=>test.seals[i].active,sealIndex),true);
-    await step(250);
-   }
-   await page.evaluate(()=>Object.assign(test.player,{x:test.stage.flagX,y:452,vy:0}));await step(1);
-   assert.equal((await snapshot()).state,'stageComplete');
-   await page.evaluate(()=>test.frame(0));await page.screenshot({path:'test-results/stage-'+stageIndex+'.png'});
-   await page.getByRole('button',{name:'Next Stage →',exact:true}).click();
-  }
-  // Approach the guardian, evade its charge, then jump onto its exposed crown.
-  for(let i=0;i<4000;i++){
-   const action=await page.evaluate(()=>{const p=test.player,g=test.guardian;const center=g.x+g.w/2-p.w/2;
-    return {dir:g.phase==='vulnerable'?(p.x<center-8?'right':p.x>center+8?'left':''):g.phase==='idle'?(p.x<g.x-150?'right':p.x>g.x+g.w+150?'left':''):'',jump:p.grounded&&((g.phase==='telegraph'&&g.timer<0.18)||g.phase==='vulnerable'),vy:p.vy};});
-   for(const [dir,key] of [['right','ArrowRight'],['left','ArrowLeft']]){if(action.dir===dir)await page.keyboard.down(key);else await page.keyboard.up(key);}
-   if(action.jump)await page.keyboard.down('Space');else if(action.vy>=0)await page.keyboard.up('Space');
-   await step(1);s=await snapshot();if(s.state!=='playing')break;
-  }
-  await page.keyboard.up('ArrowRight');await page.keyboard.up('ArrowLeft');await page.keyboard.up('Space');
-  assert.equal(s.state,'won',JSON.stringify(s));assert.ok(s.lives>0);
-  await page.evaluate(()=>test.frame(0));await page.screenshot({path:'test-results/win.png'});await page.getByRole('button',{name:'Play again',exact:true}).click();s=await snapshot();assert.equal(s.x,46);assert.equal(s.lives,3);assert.equal(s.state,'playing');assert.equal(await page.locator('#coins').textContent(),'Coins: 0');
-  for(let i=0;i<3;i++){await page.evaluate(()=>{test.player.y=705});await step(1);}
-  assert.equal(await page.locator('#end-title').textContent(),'The dunes claim you');await page.getByRole('button',{name:'Try again',exact:true}).click();assert.equal((await snapshot()).lives,3);assert.equal((await snapshot()).state,'playing');
-  console.log('PASS: desktop and phone rendering; keyboard; real multi-touch hold/jump/release/cancel; blur; seal/transition integration and guardian keyboard traversal; both restart buttons.');
+  const ability=await center('[data-action=ability]');
+  await page.evaluate(()=>{const rock=test.obstacles.find(o=>o.type==='rock');Object.assign(test.player,{x:rock.x-40,y:452,vy:0,grounded:true});});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...ability,id:3}]});await step(1);
+  assert.equal(await page.evaluate(()=>test.obstacles.find(o=>o.type==='rock').solved),true);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+  await page.evaluate(()=>test.restart());
+  assert.equal(await page.evaluate(()=>test.current),'crag');
+  assert.equal(await page.evaluate(()=>test.obstacles.find(o=>o.type==='rock').solved),false);
+  console.log('PASS: desktop and phone rendering; keyboard; real multitouch movement/jump/release/cancel; blur; touch smash and restart. Campaign traversal is covered by npm test.');
  }finally{await browser.close();if(server)server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

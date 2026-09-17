@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Creature Art — Preview</title>
+<style>
+  body{margin:0;background:#0b0c10;color:#e8ecf4;font:14px/1.5 -apple-system,Segoe UI,sans-serif;padding:24px}
+  h1{font-size:20px;margin:0 0 4px}
+  p.sub{color:#9aa4bb;max-width:820px;margin:0 0 24px}
+  h2{font-size:15px;margin:36px 0 10px;border-bottom:1px solid #23262f;padding-bottom:8px}
+  .row{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+  .card{background:#111319;border:1px solid #23262f;border-radius:10px;padding:12px;text-align:center}
+  .card .label{font-size:11px;color:#9aa4bb;margin-top:8px;text-transform:uppercase;letter-spacing:.04em}
+  canvas{image-rendering:pixelated;image-rendering:crisp-edges;background:#000;border-radius:4px}
+  .bp-canvas{width:480px;height:200px;display:block}
+  .creature-canvas{width:136px;height:192px}
+  .ob-canvas{width:160px;height:120px}
+  .box-outline{position:relative}
+</style>
+</head>
+<body>
+<h1>Creature Art — Preview</h1>
+<p class="sub">All poses/backdrops/obstacles below are rendered live from <code>CREATURE-ART.js</code> via <code>createCreatureArt()</code> — nothing here is a static image. The dashed rectangle on each creature card is the shared 34×48 physics body box for reference; note that art may extend beyond it (wide wings, wide rock shell), which is expected since only the box is used for collision.</p>
+
+<h2>Creatures — idle / run / jump / ability, facing right and left</h2>
+<div id="creatures"></div>
+
+<h2 id="backdrops-heading">Habitat backdrops (floating islands / crystal grotto / cloud garden)</h2>
+<div class="row" id="backdrops"></div>
+
+<h2 id="obstacles-heading">Obstacles — unsolved vs. solved</h2>
+<div class="row" id="obstacles"></div>
+
+<script src="CREATURE-ART.js"></script>
+<script>
+const art = createCreatureArt();
+const BOX = { w: 34, h: 48 };
+
+function creatureCanvas(id, pose, facing, animate) {
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  const canvas = document.createElement('canvas');
+  canvas.width = 68; canvas.height = 96;
+  canvas.className = 'creature-canvas';
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const originX = 17, originY = 20;
+
+  function render(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#3a4058';
+    ctx.setLineDash([2, 2]);
+    ctx.strokeRect(originX + 0.5, originY + 0.5, BOX.w, BOX.h);
+    ctx.setLineDash([]);
+    art.drawCreature(ctx, id, originX, originY, facing, pose, t);
+  }
+  render(0);
+  if (animate) {
+    let t0 = performance.now();
+    function loop(now) { render(Math.max(0, now - t0) / 1000); requestAnimationFrame(loop); }
+    requestAnimationFrame(loop);
+  }
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.textContent = id + ' · ' + pose + ' · facing ' + (facing > 0 ? 'right' : 'left');
+  wrap.appendChild(canvas);
+  wrap.appendChild(label);
+  return wrap;
+}
+
+const creaturesRoot = document.getElementById('creatures');
+const POSES = ['idle', 'run', 'jump', 'ability'];
+for (const id of ['crag', 'glint', 'sprig']) {
+  const section = document.createElement('div');
+  section.style.marginBottom = '18px';
+  const h = document.createElement('div');
+  h.style.cssText = 'font-weight:600;margin-bottom:8px;text-transform:capitalize';
+  h.textContent = id;
+  section.appendChild(h);
+  const row = document.createElement('div');
+  row.className = 'row';
+  for (const pose of POSES) {
+    row.appendChild(creatureCanvas(id, pose, 1, pose === 'run'));
+    row.appendChild(creatureCanvas(id, pose, -1, pose === 'run'));
+  }
+  section.appendChild(row);
+  creaturesRoot.appendChild(section);
+}
+
+function backdropCanvas(region) {
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  const canvas = document.createElement('canvas');
+  canvas.width = 480; canvas.height = 200;
+  canvas.className = 'bp-canvas';
+  const ctx = canvas.getContext('2d');
+  let t0 = performance.now();
+  function loop(now) {
+    const t = (now - t0) / 1000;
+    art.drawBackdrop(ctx, { w: canvas.width, h: canvas.height }, t * 40, region, t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.textContent = region;
+  wrap.appendChild(canvas);
+  wrap.appendChild(label);
+  return wrap;
+}
+const backdropsRoot = document.getElementById('backdrops');
+for (const region of ['habitat', 'grotto', 'garden']) backdropsRoot.appendChild(backdropCanvas(region));
+
+function obstacleCanvas(type, solved) {
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  const canvas = document.createElement('canvas');
+  canvas.width = 160; canvas.height = 120;
+  canvas.className = 'ob-canvas';
+  const ctx = canvas.getContext('2d');
+  const obstacle = { type, x: 40, y: 20, w: 80, h: 80, solved };
+  let t0 = performance.now();
+  function loop(now) {
+    const t = (now - t0) / 1000;
+    ctx.fillStyle = '#12141c';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    art.drawObstacle(ctx, obstacle, t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.textContent = type + ' · ' + (solved ? 'solved' : 'unsolved');
+  wrap.appendChild(canvas);
+  wrap.appendChild(label);
+  return wrap;
+}
+const obstaclesRoot = document.getElementById('obstacles');
+for (const type of ['rock', 'wind', 'seed']) {
+  obstaclesRoot.appendChild(obstacleCanvas(type, false));
+  obstaclesRoot.appendChild(obstacleCanvas(type, true));
+}
+
+if (location.hash) {
+  const target = document.querySelector(location.hash);
+  if (target) target.scrollIntoView();
+}
+</script>
+</body>
+</html>
