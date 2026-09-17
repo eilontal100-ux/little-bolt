@@ -210,23 +210,24 @@ test('moving between stages does not require re-rescuing creatures already unloc
  assert.deepEqual([...g.api.unlockedCreatures].sort(),['crag','glint','sprig']);
 });
 
-test('reaching the flag on stage 3 wins the campaign without a boss fight',()=>{
- const g=harness();g.api.loadStage(2);
+test('reaching the final flag after restoring its machinery wins the campaign',()=>{
+ const g=harness();g.api.loadStage(11);g.api.obstacles.forEach(o=>o.completed=true);
  Object.assign(g.api.player,{x:g.api.stage.flagX,y:452,vy:0});tick(g);
  assert.equal(g.api.state,'won');
 });
 
 test('reaching the flag on stages 1 and 2 advances to the next stage',()=>{
- const g=harness();
+ const g=harness();g.api.obstacles.forEach(o=>o.completed=true);
  Object.assign(g.api.player,{x:g.api.stage.flagX,y:452,vy:0});tick(g);
  assert.equal(g.api.state,'stageComplete');
  g.api.nextStage();assert.equal(g.api.stageIndex,1);assert.equal(g.api.state,'playing');
 });
 
-test('every stage is a focused width and all three stages exist',()=>{
+test('twelve stages exist across four regions',()=>{
  const stages=harness().api.STAGES;
- assert.equal(stages.length,3);
- for(const stage of stages)assert.ok(stage.width>=2200&&stage.width<=3300);
+ assert.equal(stages.length,12);
+ assert.equal(new Set(stages.map(s=>s.region)).size,4);
+ for(const stage of stages)assert.ok(stage.width>=2200&&stage.width<=4000);
 });
 
 test('no stuck input: blur and visibilitychange clear held movement and pending ability/jump',()=>{
@@ -237,21 +238,21 @@ test('no stuck input: blur and visibilitychange clear held movement and pending 
  assert.equal(g.keys.size,0);
 });
 
-test('all three stages can be completed from spawn using movement, rescues and abilities without teleporting',()=>{
+test('all twelve stages can be completed from spawn using movement, rescues and abilities without teleporting',()=>{
  const g=harness();
- for(let frame=0;frame<15000;frame++){
+ for(let frame=0;frame<35000;frame++){
   const a=g.api,p=a.player;
   if(a.state==='stageComplete'){a.nextStage();continue;}
   if(a.state!=='playing')break;
   g.keys.add('right');g.keys.delete('ability');
   if(a.creatures.some(c=>!c.rescued&&Math.abs(c.x-(p.x+17))<18))g.keys.delete('right');
-  const near=a.obstacles.find(o=>!o.solved&&o.type!=='wind'&&p.x+p.w>o.x-22&&p.x<o.x+o.w);
+  const near=a.obstacles.find(o=>['rock','thorn','seed','water','relay'].includes(o.type)&&(!o.solved||(o.remaining!==undefined&&o.remaining<2))&&p.x+p.w>o.x-22&&p.x<o.x+o.w);
   const wind=a.obstacles.find(o=>o.type==='wind'&&p.x+p.w>o.x-15&&p.x<o.x+o.w);
-  if(near){a.selectCreature(near.type==='rock'?'crag':'sprig');a.triggerAbility();}
+  if(near){g.keys.delete('right');a.selectCreature(({rock:'crag',thorn:'cinder',seed:'sprig',water:'floe',relay:'volt'})[near.type]);a.triggerAbility();}
   else if(wind){a.selectCreature('glint');g.keys.add('ability');if(p.grounded)a.jump();}
   a.update(1/120);
  }
- assert.equal(g.api.state,'won');
+ assert.equal(g.api.state,'won','stalled at stage '+(g.api.stageIndex+1)+' x='+g.api.player.x+' y='+g.api.player.y);
  assert.equal(g.api.lives,3,'the required route must be completable without deaths');
- assert.deepEqual([...g.api.unlockedCreatures].sort(),['crag','glint','sprig']);
+ assert.deepEqual([...g.api.unlockedCreatures].sort(),['cinder','crag','floe','glint','sprig','volt']);
 });
