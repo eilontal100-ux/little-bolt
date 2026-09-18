@@ -223,9 +223,9 @@ test('reaching the flag on stages 1 and 2 advances to the next stage',()=>{
  g.api.nextStage();assert.equal(g.api.stageIndex,1);assert.equal(g.api.state,'playing');
 });
 
-test('eighteen stages exist across six regions',()=>{
+test('twenty-seven stages exist across six regions',()=>{
  const stages=harness().api.STAGES;
- assert.equal(stages.length,18);
+ assert.equal(stages.length,27);
  assert.equal(new Set(stages.map(s=>s.region)).size,6);
  for(const stage of stages)assert.ok(stage.width>=2200&&stage.width<=4000);
 });
@@ -238,7 +238,7 @@ test('no stuck input: blur and visibilitychange clear held movement and pending 
  assert.equal(g.keys.size,0);
 });
 
-test('all eighteen stages can be completed from spawn using movement, rescues and abilities without teleporting',()=>{
+test('all twenty-seven stages can be completed from spawn using movement, rescues and abilities without teleporting',()=>{
  const g=harness();
  for(let frame=0;frame<90000;frame++){
   const a=g.api,p=a.player;
@@ -252,9 +252,10 @@ test('all eighteen stages can be completed from spawn using movement, rescues an
   if(near){g.keys.delete('right');a.selectCreature(({rock:'crag',thorn:'cinder',seed:'sprig',water:'floe',relay:'volt',clay:'burrow',crystal:'echo'})[near.type]);a.triggerAbility();}
   else if(wind){a.selectCreature('glint');g.keys.add('ability');if(p.grounded)a.jump();}
   else if(spike&&p.grounded){a.jump();}
+  require('./motion-driver.cjs')(g);
   a.update(1/120);
  }
  assert.equal(g.api.state,'won','stalled at stage '+(g.api.stageIndex+1)+' x='+g.api.player.x+' y='+g.api.player.y);
  assert.equal(g.api.lives,3,'the required route must be completable without deaths');
- assert.deepEqual([...g.api.unlockedCreatures].sort(),['burrow','cinder','crag','echo','floe','glint','sprig','volt']);
+ assert.deepEqual([...g.api.unlockedCreatures].sort(),['burrow','cinder','crag','echo','floe','glint','sprig','tempo','tether','volt','zip']);
 });
