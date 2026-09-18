@@ -453,7 +453,6 @@ function createCreatureArt(){
 
     updateHud();
     if (overlaps(p, {x:stage.flagX,y:310,w:20,h:190})) {
-      if(obstacles.some(o=>!o.completed&&!o.solved)){toast('Restore every crossing and circuit before leaving.');return;}
       if (stageIndex === STAGES.length-1) finish('won'); else finishStage();
     }
   }

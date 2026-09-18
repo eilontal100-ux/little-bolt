@@ -29,7 +29,23 @@ test('a gate that expires around the player waits until the player leaves before
  Object.assign(g.api.player,{x:gate.x+2,y:452,vy:0});r.remaining=.001;tick(g);assert.ok(!g.api.solids.some(s=>s.obstacleRef===gate));
  g.api.player.x=gate.x+gate.w+10;tick(g);assert.ok(g.api.solids.some(s=>s.obstacleRef===gate));
 });
-test('exits reject bypassing required puzzles',()=>{const g=harness();Object.assign(g.api.player,{x:g.api.stage.flagX,y:452});tick(g);assert.equal(g.api.state,'playing');assert.match(g.elements.toast.textContent,/Restore/);});
+test('reaching any exit clears the stage even when every puzzle was skipped',()=>{
+ const g=harness();
+ for(let i=0;i<g.api.STAGES.length;i++){
+  assert.equal(g.api.stageIndex,i);
+  assert.ok(g.api.obstacles.some(o=>!o.completed&&!o.solved));
+  Object.assign(g.api.player,{x:g.api.stage.flagX,y:452,vy:0});tick(g);
+  assert.equal(g.api.state,i===g.api.STAGES.length-1?'won':'stageComplete');
+  assert.ok(g.api.completedStages.has(i));
+  if(i<g.api.STAGES.length-1){assert.equal(g.api.highestStage,i+1);g.api.nextStage();}
+ }
+});
+test('a shortcut clear saves the next stage unlock for reload',()=>{
+ const store=storage(),g=harness({storage:store});
+ Object.assign(g.api.player,{x:g.api.stage.flagX,y:452});tick(g);
+ const h=harness({storage:store});h.api.resumeSaved();h.api.openMenu();h.api.visitStage(1);
+ assert.equal(h.api.stageIndex,1);assert.equal(h.api.state,'playing');
+});
 test('three deaths retain checkpoint, companions and permanent puzzle solutions',()=>{
  const g=setup(3,'cinder'),o=g.api.obstacles.find(o=>o.type==='thorn');approach(g,o);g.api.triggerAbility();tick(g);
  for(let i=0;i<3;i++)g.api.loseLife(true);assert.equal(g.api.state,'playing');assert.equal(o.solved,true);assert.ok(g.api.unlockedCreatures.has('cinder'));assert.equal(g.api.lives,3);
