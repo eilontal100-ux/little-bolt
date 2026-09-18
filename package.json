@@ -2,7 +2,7 @@
   "name": "little-bolt-platformer",
   "version": "1.0.0",
   "private": true,
-  "description": "A twelve-stage pixel-art puzzle platformer with six original creature abilities.",
+  "description": "An eighteen-stage pixel-art puzzle platformer with eight original creature abilities and four selectable difficulty modes.",
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/*.test.cjs",
