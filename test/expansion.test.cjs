@@ -83,10 +83,10 @@ test('invalid and unavailable storage does not break gameplay',()=>{
 });
 test('opening the map pauses time and clears held actions',()=>{const g=harness();g.keys.add('right');g.api.openMenu();const x=g.api.player.x;tick(g,100);assert.equal(g.api.player.x,x);assert.equal(g.keys.size,0);g.api.closeMenu();assert.equal(g.api.state,'playing');});
 test('all eight creatures can be selected by number once rescued',()=>{const g=setup(5,'crag');for(let n=1;n<=8;n++){g.events.keydown({code:'Digit'+n,repeat:false,preventDefault(){}});assert.equal(g.api.current,g.api.SPECIES[n-1].id);}});
-test('art module matches the embedded game art and all eight species render every pose',()=>{
+test('art module matches the embedded game art and all eleven species render every pose',()=>{
  const fs=require('node:fs'),{createCreatureArt}=require('../CREATURE-ART');
  const source=fs.readFileSync(require.resolve('../server'),'utf8');assert.ok(source.includes(createCreatureArt.toString()));
- const art=createCreatureArt();for(const id of ['crag','glint','sprig','cinder','floe','volt','burrow','echo'])for(const pose of ['idle','run','jump','ability']){
+ const art=createCreatureArt();for(const id of ['crag','glint','sprig','cinder','floe','volt','burrow','echo','tether','zip','tempo'])for(const pose of ['idle','run','jump','ability']){
   let pixels=0;const ctx={set fillStyle(v){assert.match(v,/^#[0-9a-f]{6}$/i)},fillRect(...coords){assert.ok(coords.every(Number.isFinite));pixels++;}};
   art.drawCreature(ctx,id,0,0,-1,pose,.17);assert.ok(pixels>100);
  }
@@ -159,7 +159,7 @@ test('resuming an old save without a difficulty field applies Normal lives, and 
  const k=harness({storage:store});k.api.resumeSaved();
  assert.equal(k.api.difficulty,'hard');assert.equal(k.api.lives,k.api.DIFFICULTIES.hard.lives);
 });
-test('all eighteen stages remain completable on Extra Hard, proving the 0.7x timer multiplier leaves enough margin',()=>{
+test('all twenty-seven stages remain completable on Extra Hard, proving the 0.7x timer multiplier leaves enough margin',()=>{
  const g=harness({menu:true});g.api.setDifficulty('extra');g.api.closeMenu();
  for(let frame=0;frame<90000;frame++){
   const a=g.api,p=a.player;
@@ -173,6 +173,7 @@ test('all eighteen stages remain completable on Extra Hard, proving the 0.7x tim
   if(near){g.keys.delete('right');a.selectCreature(({rock:'crag',thorn:'cinder',seed:'sprig',water:'floe',relay:'volt',clay:'burrow',crystal:'echo'})[near.type]);a.triggerAbility();}
   else if(wind){a.selectCreature('glint');g.keys.add('ability');if(p.grounded)a.jump();}
   else if(spike&&p.grounded){a.jump();}
+  require('./motion-driver.cjs')(g);
   a.update(1/120);
  }
  assert.equal(g.api.state,'won','stalled on Extra Hard at stage '+(g.api.stageIndex+1)+' x='+g.api.player.x+' y='+g.api.player.y);

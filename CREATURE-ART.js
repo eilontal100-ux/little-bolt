@@ -9,11 +9,18 @@ function createCreatureArt(){
     floe:['#24435e','#4f88aa','#88c6d4','#d4f0e8','#b1a5e8','#ffffff'],
     volt:['#33313f','#897344','#d4b967','#f6e7a0','#91e1c4','#f2fff2'],
     burrow:['#1e140f','#6b4a34','#a17a54','#e6c9a0','#ffb454','#fff3cf'],
-    echo:['#241528','#5c3160','#9a5aa0','#e6c2e8','#ff8fc0','#ffe9f7']
+    echo:['#241528','#5c3160','#9a5aa0','#e6c2e8','#ff8fc0','#ffe9f7'],
+    tether:['#211a2b','#4b3f5e','#7c6f92','#cfc4e6','#f5efe0','#ffffff'],
+    zip:['#3a2418','#8a6a48','#c9a06c','#f0dcb0','#ff9bbd','#fff6e8'],
+    tempo:['#1a2e28','#3f6b52','#6fa387','#c8e8d4','#e8c15a','#fff6d8']
   };
   // Six independently drawn silhouettes: shell, wings, leaf ears, curled horns,
   // fins and segmented antennae. Palette indexes: outline/shadow/mid/light/accent/glint.
   const grids={
+    tether:["      000000      ", "    0012222100    ", "   012334433210   ", "   023445544320   ", "   023455554320   ", "   012344443210   ", "    0123333210    ", " 00 0122222210 00 ", " 020 00122100 020 ", "  02002333320020  ", "   002355553200   ", "000023503305320000", "022023333333320220", " 0022333333332200 ", "   012233332210   ", " 000012222210000  ", "020  01222210  020", "020   000000   020", " 020          020 ", "  00          00  ", "   00        00   ", "  030        030  ", "  000        000  "],
+    zip:["   00       00    ", "  0440     0440   ", "  0420     0240   ", "  0420     0240   ", "  04220   02240   ", "   0120000210     ", "   0222222220     ", "  023333333320    ", "  023553355320    ", "  023503350320    ", "  023333333320    ", "   0233443320     ", "    02333320      ", "   0123333210     ", "   0233333320     ", "   0223333220  00 ", "  022223322220 020", " 0232222222320020 ", " 023330000333020  ", "  0330    03300   ", " 03330    03330   ", "033330    033330  ", "000000    000000  "],
+    tempo:["                  ", "                  ", "     000000       ", "   0024444200     ", "  024333333420    ", " 02433044333420   ", "0243304224333420  ", "0233042332433320  ", "0233042342433320  ", "0233042342433320  ", "0233042222433320  ", "0233304444333320  ", "0243333333333420  ", " 02433333333420   ", "  024444444420    ", "   0000000000 050 ", "  01222222210 050 ", " 012333333321020  ", "01233333333322320 ", "023333333333333320", " 0233333333333320 ", "  01111111111110  ", "   000000000000   "],
+
     crag:[
       '        00          ','       0440         ','    0004554000      ','   012204402210     ',
       '  01233222233210    ',' 0123310110133210   ','012221122211222210  ','013321233321233210  ',
@@ -113,6 +120,9 @@ function createCreatureArt(){
       rows[8]='4444402222222044444 ';rows[9]='444444022222204444440';rows[10]='44 4440222222044 4444';
     }
     if(act&&id==='burrow'){rows[7]='0223345555555543320 ';rows[8]=' 02235555555555532200';rows[9]='  022355555555553220 ';}
+    if(act&&id==='tether'){rows[8]='040 0122222210 040 ';rows[9]='044002333333200440 ';}
+    if(act&&id==='zip'){rows[0]='   0000     0000   ';rows[1]='  044440   044440  ';}
+    if(act&&id==='tempo'){rows[7]='0233042552433320  ';rows[8]='0233042552433320  ';}
     const yy=y+2+(run?frame*2:Math.floor(t*2)%2*2)-(air?2:0);
     pixelGrid(c,rows,colors[id],x-5,yy,2,facing<0);
     if(act){for(let i=0;i<5;i++){const a=t*5+i*1.256;box(c,x+17+Math.cos(a)*27,y+25+Math.sin(a)*25,4,4,colors[id][4]);}}
@@ -207,7 +217,19 @@ function createCreatureArt(){
     if(s.kind==='ground')for(let x=s.x+16;x<s.x+s.w-12;x+=80){box(c,x,s.y-8,4,8,p.trim);box(c,x+4,s.y-12,6,6,p.top);}
   }
   function drawObstacle(c,o,t){const {x,y,w,h}=o;
-    if(o.type==='rock'){
+    if(o.type==='anchor'){
+      box(c,x+w/2-2,y-16,4,16,'#8a7b9d');box(c,x,y,w,h,'#493c62');box(c,x+3,y+3,w-6,h-6,'#f5efd8');box(c,x+7,y+7,w-14,h-14,'#493c62');
+    }else if(o.type==='movingPlatform'){
+      box(c,x,y,w,h,'#334b56');box(c,x,y,w,5,'#c1f5d9');
+      for(let xx=x+6;xx<x+w-8;xx+=16){box(c,xx,y+7,9,5,'#72b19b');box(c,xx+2,y+h-4,5,4,'#d9ba6c');}
+    }else if(o.type==='saw'){
+      const cx=x+w/2,cy=y+h/2,r=Math.min(w,h)/2;
+      c.fillStyle='#f5c0ab';c.beginPath();
+      for(let i=0;i<24;i++){const a=i*Math.PI/12+t*3,rr=i%2?r*.66:r;const xx=cx+Math.cos(a)*rr,yy=cy+Math.sin(a)*rr;if(i)c.lineTo(xx,yy);else c.moveTo(xx,yy);}
+      c.closePath();c.fill();box(c,cx-5,cy-5,10,10,'#704f66');box(c,cx-2,cy-2,4,4,'#fff3d4');
+    }else if(['grappleGap','dashGap','clockGap'].includes(o.type)){
+      box(c,x-8,y-8,8,8,'#ffe0a3');box(c,x+w,y-8,8,8,'#ffe0a3');
+    }else if(o.type==='rock'){
       if(o.solved){box(c,x,488,w,12,'#77808e');return;}
       box(c,x,y,w,h,'#30394b');for(let yy=y+4;yy<y+h;yy+=28){box(c,x+4,yy,w-8,24,'#8d96a0');box(c,x+6,yy+2,w-14,4,'#c5c9bc');box(c,x+w/2,yy+8,4,14,'#535e72');}
     }else if(o.type==='thorn'){

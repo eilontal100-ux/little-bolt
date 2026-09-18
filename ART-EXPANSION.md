@@ -43,3 +43,14 @@ Extended the existing six-creature/four-region baseline above; did not touch ser
 - Row-count/row-length structural check on the two new sprite grids: both have 23 rows; all rows are ≤22 characters (the fixed mirror-width constant `pixelGrid` uses), consistent with how the existing six creatures' grids are authored.
 - Real-browser check: navigated an isolated, driver-owned Chromium instance (via the mounted browser tool, `browser_prepare`/`browser_navigate`/`get_browser_state`, serving the project directory over a local `http.server` on an ephemeral port that was torn down afterward) to `CREATURE-ART.html` and inspected screenshots. Confirmed all 8 creature portraits render distinctly across idle/run/jump/ability, and all 6 region sections (habitat/tide/foundry/aurora/burrow/resonance) render distinct backdrops, terrain, and the full obstacle sample row including `clay`, `spikes`, and `crystal`, with no blank/broken tiles observed. This was a visual spot-check of the standalone preview, not a test of server.js's actual in-game rendering, and not a full-resolution pixel-by-pixel audit of every obstacle at every solved/unsolved state.
 - No coordination round-trip was performed for this handoff, per the request that the lead would pass the contract directly; independent review of this specific extension is pending.
+
+
+## Movement expansion (27 stages)
+
+Ava's interrupted attempt added only three palette entries. The lead completed original Tether (spider), Zip (jerboa), and Tempo (snail) sprite grids and ability poses, plus grapple rings, moving ferries, and rotating saws. The external module, game embed, and preview are synchronized.
+
+Runtime obstacle contract: anchor uses x/y/w/h; movingPlatform uses its current x/y/w/h; saw uses current x/y/w/h and its motion phase as animation time, so stasis stops rotation as well as travel. Gap markers identify the two banks. Grapple rope, dash trail, and motion tracks are rendered in the game.
+
+Verification: syntax checks and automated rendering tests across all 11 species/poses. No browser screenshot review for this change: the mounted Chrome profile refused inspection without separate consent. Pixel and Ava hit their session limits; their failed assignments are not a review.
+
+Final review: Pixel subsequently inspected the finished implementation, verified art synchronization, independently ran all 70 tests successfully, and approved with no blocking issues. Browser and real-device visual checks remain unverified.

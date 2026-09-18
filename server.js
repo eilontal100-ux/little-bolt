@@ -25,6 +25,8 @@ function gameClient() {
     ['zenith',['#1a1330','#3d2c66','#a892f0'],'#382a5c','#241a42','#160f2a','#e6d9ff'],
   ].forEach(([id,sky,ground,mid,deep,edge])=>{PAL[id]={sky,ground,mid,deep,edge,pillar:mid,accent:edge};});
 
+  PAL.resonance=PAL.hollow;PAL.burrow=PAL.warren;
+
 function createCreatureArt(){
   const colors={
     crag:['#25333c','#626d80','#909ba5','#d7d2b7','#e9b25e','#fff0bd'],
@@ -34,11 +36,18 @@ function createCreatureArt(){
     floe:['#24435e','#4f88aa','#88c6d4','#d4f0e8','#b1a5e8','#ffffff'],
     volt:['#33313f','#897344','#d4b967','#f6e7a0','#91e1c4','#f2fff2'],
     burrow:['#1e140f','#6b4a34','#a17a54','#e6c9a0','#ffb454','#fff3cf'],
-    echo:['#241528','#5c3160','#9a5aa0','#e6c2e8','#ff8fc0','#ffe9f7']
+    echo:['#241528','#5c3160','#9a5aa0','#e6c2e8','#ff8fc0','#ffe9f7'],
+    tether:['#211a2b','#4b3f5e','#7c6f92','#cfc4e6','#f5efe0','#ffffff'],
+    zip:['#3a2418','#8a6a48','#c9a06c','#f0dcb0','#ff9bbd','#fff6e8'],
+    tempo:['#1a2e28','#3f6b52','#6fa387','#c8e8d4','#e8c15a','#fff6d8']
   };
   // Six independently drawn silhouettes: shell, wings, leaf ears, curled horns,
   // fins and segmented antennae. Palette indexes: outline/shadow/mid/light/accent/glint.
   const grids={
+    tether:["      000000      ", "    0012222100    ", "   012334433210   ", "   023445544320   ", "   023455554320   ", "   012344443210   ", "    0123333210    ", " 00 0122222210 00 ", " 020 00122100 020 ", "  02002333320020  ", "   002355553200   ", "000023503305320000", "022023333333320220", " 0022333333332200 ", "   012233332210   ", " 000012222210000  ", "020  01222210  020", "020   000000   020", " 020          020 ", "  00          00  ", "   00        00   ", "  030        030  ", "  000        000  "],
+    zip:["   00       00    ", "  0440     0440   ", "  0420     0240   ", "  0420     0240   ", "  04220   02240   ", "   0120000210     ", "   0222222220     ", "  023333333320    ", "  023553355320    ", "  023503350320    ", "  023333333320    ", "   0233443320     ", "    02333320      ", "   0123333210     ", "   0233333320     ", "   0223333220  00 ", "  022223322220 020", " 0232222222320020 ", " 023330000333020  ", "  0330    03300   ", " 03330    03330   ", "033330    033330  ", "000000    000000  "],
+    tempo:["                  ", "                  ", "     000000       ", "   0024444200     ", "  024333333420    ", " 02433044333420   ", "0243304224333420  ", "0233042332433320  ", "0233042342433320  ", "0233042342433320  ", "0233042222433320  ", "0233304444333320  ", "0243333333333420  ", " 02433333333420   ", "  024444444420    ", "   0000000000 050 ", "  01222222210 050 ", " 012333333321020  ", "01233333333322320 ", "023333333333333320", " 0233333333333320 ", "  01111111111110  ", "   000000000000   "],
+
     crag:[
       '        00          ','       0440         ','    0004554000      ','   012204402210     ',
       '  01233222233210    ',' 0123310110133210   ','012221122211222210  ','013321233321233210  ',
@@ -138,6 +147,9 @@ function createCreatureArt(){
       rows[8]='4444402222222044444 ';rows[9]='444444022222204444440';rows[10]='44 4440222222044 4444';
     }
     if(act&&id==='burrow'){rows[7]='0223345555555543320 ';rows[8]=' 02235555555555532200';rows[9]='  022355555555553220 ';}
+    if(act&&id==='tether'){rows[8]='040 0122222210 040 ';rows[9]='044002333333200440 ';}
+    if(act&&id==='zip'){rows[0]='   0000     0000   ';rows[1]='  044440   044440  ';}
+    if(act&&id==='tempo'){rows[7]='0233042552433320  ';rows[8]='0233042552433320  ';}
     const yy=y+2+(run?frame*2:Math.floor(t*2)%2*2)-(air?2:0);
     pixelGrid(c,rows,colors[id],x-5,yy,2,facing<0);
     if(act){for(let i=0;i<5;i++){const a=t*5+i*1.256;box(c,x+17+Math.cos(a)*27,y+25+Math.sin(a)*25,4,4,colors[id][4]);}}
@@ -232,7 +244,19 @@ function createCreatureArt(){
     if(s.kind==='ground')for(let x=s.x+16;x<s.x+s.w-12;x+=80){box(c,x,s.y-8,4,8,p.trim);box(c,x+4,s.y-12,6,6,p.top);}
   }
   function drawObstacle(c,o,t){const {x,y,w,h}=o;
-    if(o.type==='rock'){
+    if(o.type==='anchor'){
+      box(c,x+w/2-2,y-16,4,16,'#8a7b9d');box(c,x,y,w,h,'#493c62');box(c,x+3,y+3,w-6,h-6,'#f5efd8');box(c,x+7,y+7,w-14,h-14,'#493c62');
+    }else if(o.type==='movingPlatform'){
+      box(c,x,y,w,h,'#334b56');box(c,x,y,w,5,'#c1f5d9');
+      for(let xx=x+6;xx<x+w-8;xx+=16){box(c,xx,y+7,9,5,'#72b19b');box(c,xx+2,y+h-4,5,4,'#d9ba6c');}
+    }else if(o.type==='saw'){
+      const cx=x+w/2,cy=y+h/2,r=Math.min(w,h)/2;
+      c.fillStyle='#f5c0ab';c.beginPath();
+      for(let i=0;i<24;i++){const a=i*Math.PI/12+t*3,rr=i%2?r*.66:r;const xx=cx+Math.cos(a)*rr,yy=cy+Math.sin(a)*rr;if(i)c.lineTo(xx,yy);else c.moveTo(xx,yy);}
+      c.closePath();c.fill();box(c,cx-5,cy-5,10,10,'#704f66');box(c,cx-2,cy-2,4,4,'#fff3d4');
+    }else if(['grappleGap','dashGap','clockGap'].includes(o.type)){
+      box(c,x-8,y-8,8,8,'#ffe0a3');box(c,x+w,y-8,8,8,'#ffe0a3');
+    }else if(o.type==='rock'){
       if(o.solved){box(c,x,488,w,12,'#77808e');return;}
       box(c,x,y,w,h,'#30394b');for(let yy=y+4;yy<y+h;yy+=28){box(c,x+4,yy,w-8,24,'#8d96a0');box(c,x+6,yy+2,w-14,4,'#c5c9bc');box(c,x+w/2,yy+8,4,14,'#535e72');}
     }else if(o.type==='thorn'){
@@ -295,7 +319,6 @@ function createCreatureArt(){
   function drawCollectibleShard(c,x,y,t){const bob=Math.floor(Math.sin(t*3)*2)*2;box(c,x-4,y-12+bob,8,24,'#d9ccf6');box(c,x-8,y-6+bob,16,12,'#bca9e0');box(c,x-4,y-6+bob,4,8,'#f5efff');}
   return {drawCreature,drawBackdrop,drawObstacle,drawTerrain,drawCollectibleCoin,drawCollectibleShard,palettes:colors,regions};
 }
-
   const ART=createCreatureArt();
   const SPECIES = [
     { id:'crag', label:'CRAG', ability:'SMASH', prompt:'C/K to smash rock barriers',
@@ -313,6 +336,11 @@ function createCreatureArt(){
   SPECIES.push(
     {id:'burrow',label:'BURROW',ability:'DIG',prompt:'C/K to dig through clay walls'},
     {id:'echo',label:'ECHO',ability:'SING',prompt:'C/K near a crystal node to ring a permanent bridge into being'}
+  );
+  SPECIES.push(
+    {id:'tether',label:'TETHER',ability:'GRAPPLE',prompt:'C/K pulls you to a ring ahead. Press again to release'},
+    {id:'zip',label:'ZIP',ability:'AIR DASH',prompt:'Jump, then C/K to dash in your facing direction. Land to recharge'},
+    {id:'tempo',label:'TEMPO',ability:'STASIS',prompt:'C/K freezes moving platforms and saws for 4s. Recharge takes 7s'}
   );
   function speciesOf(id){return SPECIES.find(s=>s.id===id);}
 
@@ -467,6 +495,49 @@ function createCreatureArt(){
   );
   STAGES[12].region='burrow';STAGES[13].region='resonance';STAGES[14].region='burrow';
   STAGES[15].region='foundry';STAGES[16].region='resonance';STAGES[17].region='aurora';
+  // Open-air trials use movement and timing rather than a barrier/bridge ability gate.
+  function motionTrial(name,region,width,gaps,devices,rescue,platforms,checkpoints,hint){
+    let cursor=0;const grounds=[];
+    for(const [type,x,w] of gaps){grounds.push({x:cursor,w:x-cursor});cursor=x+w;}
+    grounds.push({x:cursor,w:width-cursor});
+    const st=mkStage({name,palette:region,width,flagX:width-100,spawn:{x:40,y:452},grounds,
+      obstacles:[...gaps.map(([type,x,w])=>({type,x,y:500,w,h:20})),...devices],
+      creatures:rescue?[{id:rescue,x:240,y:450}]:[],platforms,checkpoints,
+      coins:checkpoints.map(x=>[x+45,465]),shards:platforms.map(([x,y,w])=>[x+w/2,y-28])});
+    st.hint=hint;return st;
+  }
+  const anchor=(x,y=250)=>({type:'anchor',x,y,w:24,h:24});
+  const ferry=(x,range=55,speed=0.8)=>({type:'movingPlatform',x,y:455,w:150,h:18,range,speed});
+  const saw=(x,y=454,range=45,speed=1.2)=>({type:'saw',x,y,w:34,h:34,range,speed});
+  STAGES.push(
+    motionTrial('Silkway Canopy','habitat',2400,[['grappleGap',650,360],['grappleGap',1490,380]],
+      [anchor(930),anchor(1790,220)],'tether',[[1110,410,100],[1230,330,90]],[100,1120,2010],
+      'Meet Tether. Face a ring and tap C/K to pull upward. Release near it and steer to the far bank.'),
+    motionTrial('Comet Run','aurora',2500,[['dashGap',660,300],['dashGap',1660,320]],
+      [saw(1400)],'zip',[[1090,410,90],[1190,330,90]],[100,1050,2090],
+      'Meet Zip. Jump at the lip, then dash in midair. One dash per landing; solid walls still stop you.'),
+    motionTrial('The Stillwater Clock','tide',2500,[['clockGap',670,330],['clockGap',1670,330]],
+      [ferry(760),saw(1400),ferry(1760,60)],'tempo',[[1120,400,100]],[100,1110,2110],
+      'Meet Tempo. Freeze a ferry near the middle, jump onto it, then jump to shore. Saws freeze too.'),
+    motionTrial('Thread the Needle','resonance',2800,[['grappleGap',580,390],['dashGap',1420,320],['grappleGap',2050,380]],
+      [anchor(890,210),anchor(2350,245),saw(1280)],null,[[990,400,90],[1090,315,80]],[100,1020,1840,2520],
+      'Pull high with Tether, land to charge Zip, then reach the moonlit rings.'),
+    motionTrial('Pendulum Gardens','habitat',2700,[['clockGap',590,330],['grappleGap',1790,380]],
+      [ferry(680,65),saw(1180),saw(1490,454,65),anchor(2090,215)],null,[[2260,410,90],[2370,325,90]],[100,1020,1620,2300],
+      'Stop the garden clock to choose your moment. Stasis ends after four seconds; its recharge keeps counting.'),
+    motionTrial('Meteor Switchbacks','foundry',2800,[['dashGap',620,320],['dashGap',1470,310],['clockGap',2160,330]],
+      [saw(1300),ferry(2250)],null,[[980,410,95],[1090,325,90]],[100,1030,1900,2570],
+      'Dash across the broken foundry, land between bursts, then stop the final ferry.'),
+    motionTrial('Borrowed Seconds','burrow',3000,[['clockGap',570,330],['dashGap',1410,320],['clockGap',2330,330]],
+      [ferry(660),saw(1110),saw(2150,454,45),ferry(2420,65)],null,[[1810,410,100],[1920,325,90]],[100,1010,1830,2790],
+      'Borrow time at the first ferry. Dash through the archive and wait safely for your clock to recharge.'),
+    motionTrial('Silk and Lightning','resonance',3100,[['grappleGap',620,380],['clockGap',1590,330],['dashGap',2430,320]],
+      [anchor(920,225),ferry(1680),saw(2140)],null,[[1140,400,100],[1250,315,90]],[100,1120,2040,2830],
+      'Grapple above the lake, stop its drifting platform, then take one long air dash home.'),
+    motionTrial('Beyond the Skyheart','aurora',3600,[['dashGap',570,320],['grappleGap',1350,380],['clockGap',2210,330],['grappleGap',2920,380]],
+      [anchor(1650,220),ferry(2300),anchor(3220,210),saw(1940)],null,[[990,410,90],[1100,325,90]],[100,1010,1820,2650,3380],
+      'The final ascent: leap, dash, pull, and stop time. Every landing is a chance to plan your next move.')
+  );
   const totalCoins = STAGES.reduce((n,s)=>n+s.coinStarts.length,0);
   const totalShards = STAGES.reduce((n,s)=>n+s.shardStarts.length,0);
 
@@ -491,6 +562,30 @@ function createCreatureArt(){
   };
   const DIFFICULTY_ORDER = ['easy','normal','hard','extra'];
   let difficulty = 'normal';
+  let grapple=null,dashTime=0,dashReady=true,dashDirection=1,stasisTime=0,stasisCooldown=0;
+  let etStarted=0,adminPrevious='playing',adminFocus=null,adminActive=false,adminInvincible=false,adminSnapshot=null;
+  function resetMotion(){grapple=null;dashTime=0;dashReady=true;stasisTime=0;stasisCooldown=0;}
+  function clearSight(a){
+    const x=player.x+17,y=player.y+24,dx=a.x+12-x,dy=a.y+36-y;
+    const n=Math.ceil(Math.hypot(dx,dy)/8);
+    for(let i=1;i<n;i++){const point={x:x+dx*i/n-2,y:y+dy*i/n-2,w:4,h:4};
+      if(solids.some(s=>s.kind!=='movingPlatform'&&overlaps(point,s)))return false;}
+    return true;
+  }
+  function updateMotion(dt){
+    const frozen=stasisTime>0;
+    stasisTime=Math.max(0,stasisTime-dt);stasisCooldown=Math.max(0,stasisCooldown-dt);
+    for(const o of obstacles){
+      if(!['movingPlatform','saw'].includes(o.type))continue;
+      if(frozen)continue;
+      const phase=o.phase+dt*o.speed,nx=o.originX+Math.sin(phase)*o.range,dx=nx-o.x;
+      const riding=o.type==='movingPlatform'&&player.grounded&&Math.abs(player.y+player.h-o.y)<2&&player.x+player.w>o.x&&player.x<o.x+o.w;
+      // A ferry waits rather than carrying its passenger into static geometry.
+      if(riding&&solids.some(s=>s.kind!=='movingPlatform'&&overlaps({...player,x:player.x+dx},s)))continue;
+      o.phase=phase;o.x=nx;if(riding)player.x+=dx;
+      const s=solidFor(o);if(s)s.x=nx;
+    }
+  }
 
   function burst(x,y,color,n=10) {
     for(let i=0;i<n;i++) {const a=i/n*Math.PI*2;particles.push({x,y,vx:Math.cos(a)*90,vy:Math.sin(a)*90-35,life:0.55,color});}
@@ -505,7 +600,7 @@ function createCreatureArt(){
   function held(action) { return keys.has(action) || [...touches.values()].includes(action); }
 
   function speciesOrder(){ return SPECIES.filter(s=>unlockedCreatures.has(s.id)).map(s=>s.id); }
-  function setCurrent(id){ if(id===current)return; current=id; gliding=false; toast(speciesOf(id).label+' active · '+speciesOf(id).prompt); }
+  function setCurrent(id){ if(id===current)return; current=id; gliding=false;grapple=null;dashTime=0; toast(speciesOf(id).label+' active · '+speciesOf(id).prompt); }
   function cycleCreature(dir){ const order=speciesOrder(); if(order.length<2)return; let i=order.indexOf(current); i=(i+dir+order.length)%order.length; setCurrent(order[i]); }
   function selectCreature(id){ if(unlockedCreatures.has(id)) setCurrent(id); }
 
@@ -514,12 +609,17 @@ function createCreatureArt(){
   let menuPrevious='playing';
   function loadStage(index) {
     if(!Number.isInteger(index)||index<0||index>=STAGES.length)return;
+    resetMotion();etStarted=0;
     stageIndex = index; stage = STAGES[index];
     solids = stage.baseSolids.map(s=>({...s}));
     obstacles = stage.obstacleTemplate.map(o=>({...o,solved:false}));
     const mul = DIFFICULTIES[difficulty].timerMul;
     obstacles.forEach(o=>{ if(o.duration!=null) o.duration = o.duration * mul; });
     obstacles.filter(o=>['rock','thorn','clay','gate'].includes(o.type)).forEach(o=>{ solids.push({x:o.x,y:o.y,w:o.w,h:o.h,kind:o.type,obstacleRef:o}); });
+    for(const o of obstacles)if(['movingPlatform','saw'].includes(o.type)){
+      o.originX=o.x;o.phase=0;
+      if(o.type==='movingPlatform')solids.push({x:o.x,y:o.y,w:o.w,h:o.h,kind:'movingPlatform',obstacleRef:o});
+    }
     coins = stage.coinStarts.map(([x,y]) => ({x,y,collected:false}));
     shards = stage.shardStarts.map(([x,y]) => ({x,y,collected:false}));
     creatures = stage.creatureStarts.map(c => ({...c,rescued:unlockedCreatures.has(c.id)}));
@@ -540,6 +640,10 @@ function createCreatureArt(){
 
   function updateHud() {
     document.getElementById('difficulty').textContent = DIFFICULTIES[difficulty].label;
+    document.getElementById('motion-status').textContent=stasisTime>0?'TIME FROZEN · '+stasisTime.toFixed(1)+'s':
+      current==='tempo'?(stasisCooldown>0?'STASIS RECHARGE · '+stasisCooldown.toFixed(1)+'s':'STASIS READY'):
+      current==='zip'?(dashReady?'AIR DASH READY':'LAND TO RECHARGE'):current==='tether'?(grapple?'GRAPPLE · TAP TO RELEASE':'FACE A RING · TAP TO PULL'):'';
+    document.getElementById('cheat-status').textContent=adminActive?'ADMIN PRACTICE · SAVE PROTECTED'+(adminInvincible?' · INVINCIBLE':''):'';
     document.getElementById('crew').textContent = speciesOf(current).label+' · '+speciesOf(current).ability+'  /  '+unlockedCreatures.size+' friends';
     document.getElementById('shards').textContent = '◆ ' + fragmentCount + '/' + totalShards;
     const pct = Math.min(100,Math.floor(player.x/(stage.flagX||1)*100));
@@ -553,7 +657,7 @@ function createCreatureArt(){
     if (state !== 'playing') return;
     const p = player;
     const pal = stage.palette;
-    updateMachinery(dt);
+    updateMachinery(dt);updateMotion(dt);
     elapsed += dt; toastTimer=Math.max(0,toastTimer-dt); abilityPoseTimer=Math.max(0,abilityPoseTimer-dt);
     particles=particles.filter(q=>{q.life-=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=180*dt;return q.life>0;});
     coyoteTimer=p.grounded?0.1:Math.max(0,coyoteTimer-dt);
@@ -567,11 +671,18 @@ function createCreatureArt(){
       if(!held('jump')) {p.vy*=0.45;jumpCut=true;}
     }
     jumpQueued = false;
+    let pulling=false;
+    if(grapple){
+      const dx=grapple.x+12-(p.x+17),dy=grapple.y+36-(p.y+24),dist=Math.hypot(dx,dy);
+      if(dist<14||!clearSight(grapple)){grapple=null;}
+      else{pulling=true;p.vx=dx/dist*600;p.vy=dy/dist*600;p.grounded=false;}
+    }
+    if(dashTime>0){dashTime=Math.max(0,dashTime-dt);p.vx=dashDirection*850;p.vy=0;}
     p.x += p.vx * dt;
-    for (const s of solids) if (overlaps(p, s)) {
+    for (const s of solids) if (s.kind!=='movingPlatform'&&overlaps(p, s)) {
       if (p.vx > 0) p.x = s.x - p.w;
       else if (p.vx < 0) p.x = s.x + s.w;
-      p.vx = 0;
+      p.vx = 0;grapple=null;dashTime=0;
     }
     p.x = Math.max(0, Math.min(stage.width - p.w, p.x));
 
@@ -581,19 +692,22 @@ function createCreatureArt(){
     }
     gliding = !!windZone;
     if (windZone) windZone.solved = true;
-    if (gliding) { p.vy = Math.max(p.vy - LIFT*dt, -LIFT_CAP); }
+    if(pulling||dashTime>0){}
+    else if (gliding) { p.vy = Math.max(p.vy - LIFT*dt, -LIFT_CAP); }
     else { p.vy = Math.min(900, p.vy + GRAVITY * dt); }
+    const previousBottom=p.y+p.h;
     p.y += p.vy * dt;
     const landingSpeed=p.vy;
     p.grounded = false;
-    for (const s of solids) if (overlaps(p, s)) {
+    for (const s of solids) if (overlaps(p, s)&&(s.kind!=='movingPlatform'||(p.vy>=0&&previousBottom<=s.y+1))) {
       if (p.vy > 0) { p.y = s.y - p.h; p.grounded = true; }
       else if (p.vy < 0) p.y = s.y + s.h;
-      p.vy = 0;
+      p.vy = 0;grapple=null;
     }
+    if(p.grounded){dashReady=true;dashTime=0;}
     if(p.grounded && landingSpeed>200)burst(p.x+17,p.y+48,pal.edge,5);
     if (p.y > SCENE.height + 100) { loseLife(true); return; }
-    for(const o of obstacles) if(o.type==='spikes' && overlaps(p,o)) { loseLife(false); break; }
+    for(const o of obstacles) if(['spikes','saw'].includes(o.type) && overlaps(p,o)) { loseLife(false); break; }
     updateCamera();
 
     for (const coin of coins) if (!coin.collected && overlaps(p, {x:coin.x-10,y:coin.y-10,w:20,h:20})) {
@@ -607,7 +721,7 @@ function createCreatureArt(){
       shard.collected=true;fragmentCount++;burst(shard.x,shard.y,'#b9abff',16);toast('Relic found · '+fragmentCount+' / '+totalShards);saveProgress();
     }
     for(const c of creatures) if(!c.rescued && overlaps(p,{x:c.x-18,y:c.y-24,w:36,h:48})) {
-      c.rescued=true; unlockedCreatures.add(c.id); current=c.id; gliding=false;
+      c.rescued=true; unlockedCreatures.add(c.id); current=c.id; gliding=false;grapple=null;dashTime=0;
       burst(c.x,c.y,'#ffe6a0',20); toast(speciesOf(c.id).label+' joins you · '+speciesOf(c.id).prompt);saveProgress();
     }
 
@@ -644,6 +758,21 @@ function createCreatureArt(){
   }
   function useAbility(){
     abilityPoseTimer=0.35;
+    if(current==='tether'){
+      if(grapple){grapple=null;return;}
+      grapple=obstacles.filter(o=>o.type==='anchor'&&(o.x+12-player.x-17)*player.facing>0&&
+        Math.hypot(o.x+12-player.x-17,o.y+36-player.y-24)<490&&clearSight(o))
+        .sort((a,b)=>Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y))[0]||null;
+      toast(grapple?'Silk attached · tap again to release':'Face a ring within reach');return;
+    }
+    if(current==='zip'){
+      if(!player.grounded&&dashReady){dashReady=false;dashTime=.26;dashDirection=player.facing;grapple=null;}
+      else toast(player.grounded?'Jump before dashing':'Land to recharge your dash');return;
+    }
+    if(current==='tempo'){
+      if(stasisCooldown<=0){stasisTime=4;stasisCooldown=7;toast('Time stopped · 4 seconds');}
+      else toast('Clock recharging · '+Math.ceil(stasisCooldown)+'s');return;
+    }
     const expected={rock:'crag',thorn:'cinder',seed:'sprig',water:'floe',relay:'volt',clay:'burrow',crystal:'echo'};
     let success=false;
     for(const o of obstacles){
@@ -689,6 +818,7 @@ function createCreatureArt(){
     state = 'playing';
   }
   function restart() {
+    adminActive=false;adminInvincible=false;adminSnapshot=null;
     campaignRecords={};highestStage=0;completedStages=new Set();
     lives = DIFFICULTIES[difficulty].lives; coinCount = 0; fragmentCount = 0; state = 'playing';
     unlockedCreatures = new Set(['crag']); current = 'crag';
@@ -696,13 +826,16 @@ function createCreatureArt(){
     loadStage(0);saveProgress();
   }
   function onEndButton() {
+    if(adminActive&&state==='won'){endAdminPractice();return;}
     if (state === 'stageComplete') nextStage(); else restart();
   }
   function loseLife(fell = false) {
     if (state !== 'playing' || (!fell && damageTimer > 0)) return;
+    if(adminInvincible&&!fell)return;
+    resetMotion();
     const mode = DIFFICULTIES[difficulty];
     coyoteTimer=0;jumpBufferTimer=0;
-    lives--; document.getElementById('lives').textContent = 'Lives: ' + lives;
+    if(!adminInvincible)lives--; document.getElementById('lives').textContent = 'Lives: ' + lives;
     clearInput(); physicalKeys.clear();
     if(lives<=0){lives=mode.lives;document.getElementById('lives').textContent='Lives: '+lives;toast('Fresh energy · checkpoint and companions kept');}
     Object.assign(player, spawn, {vx:0,vy:0,grounded:true,facing:1});
@@ -710,7 +843,7 @@ function createCreatureArt(){
     damageTimer = mode.grace; updateCamera();
   }
   function setDifficulty(id){
-    if(state!=='menu'||!DIFFICULTIES[id]||id===difficulty)return;
+    if(state!=='menu'||!Object.prototype.hasOwnProperty.call(DIFFICULTIES,id)||id===difficulty)return;
     difficulty=id;
     lives=DIFFICULTIES[difficulty].lives;
     document.getElementById('lives').textContent='Lives: '+lives;
@@ -736,7 +869,7 @@ function createCreatureArt(){
     }
   }
   function saveProgress(){
-    rememberStage();
+    rememberStage();if(adminActive)return;
     try{window.localStorage?.setItem(SAVE_KEY,JSON.stringify({version:2,stageIndex,highestStage,records:campaignRecords,
       unlocked:[...unlockedCreatures],current,completed:[...completedStages],difficulty}));}
     catch{document.getElementById('save-status').textContent='Saving unavailable · this session still works';}
@@ -747,7 +880,7 @@ function createCreatureArt(){
       !Number.isInteger(s.highestStage)||s.highestStage<s.stageIndex||s.highestStage>=STAGES.length||
       !Array.isArray(s.unlocked)||!s.unlocked.includes('crag')||!s.records||typeof s.records!=='object')return null;
     // Old saves predate difficulty modes; a missing or unknown value defaults to Normal rather than invalidating the save.
-    s.difficulty = DIFFICULTIES[s.difficulty] ? s.difficulty : 'normal';
+    s.difficulty = Object.prototype.hasOwnProperty.call(DIFFICULTIES,s.difficulty) ? s.difficulty : 'normal';
     // Bound data to the shipped campaign and reject malformed stage records.
     for(const [key,r] of Object.entries(s.records)){
       const st=STAGES[Number(key)];if(!st||!r||!Array.isArray(r.coins)||!Array.isArray(r.shards)||!Array.isArray(r.obstacles))return null;
@@ -755,11 +888,16 @@ function createCreatureArt(){
     return s;
   }catch{return null;}}
   function resumeSaved(){
+    if(adminActive){endAdminPractice();return;}
     const s=readSave();if(!s){document.getElementById('save-status').textContent='No compatible saved journey yet';return;}
+    applySave(s);
+  }
+  function applySave(s){
     campaignRecords=s.records;highestStage=s.highestStage;difficulty=s.difficulty;
     unlockedCreatures=new Set(s.unlocked.filter(id=>SPECIES.some(c=>c.id===id)));
     completedStages=new Set((Array.isArray(s.completed)?s.completed:[]).filter(i=>Number.isInteger(i)&&i>=0&&i<STAGES.length));
     // Backfills companions for saves made before shortcut-granting existed, or any stage completed while skipping its rescue.
+    for(let i=0;i<highestStage;i++)unlockStageCompanions(i);
     for(const i of completedStages) unlockStageCompanions(i);
     current=unlockedCreatures.has(s.current)?s.current:'crag';
     coinCount=0;fragmentCount=0;lives=DIFFICULTIES[difficulty].lives;
@@ -785,9 +923,73 @@ function createCreatureArt(){
   document.getElementById('new-journey').addEventListener('click',()=>{if(window.confirm('Start a new journey? This replaces your saved progress.')){restart();document.getElementById('campaign-menu').hidden=true;}});
   for(let i=0;i<STAGES.length;i++)document.getElementById('level-'+i).addEventListener('click',()=>visitStage(i));
   for(const key of DIFFICULTY_ORDER)document.getElementById('difficulty-'+key).addEventListener('click',()=>{setDifficulty(key);refreshMenu();});
+  function openAdmin(){
+    if(state==='admin')return;
+    adminPrevious=state;adminFocus=document.activeElement;state='admin';etStarted=0;
+    clearInput();physicalKeys.clear();document.getElementById('admin-panel').hidden=false;
+    document.getElementById('admin-level').value=String(stageIndex);
+    refreshAdmin();document.getElementById('admin-close').focus();
+  }
+  function refreshAdmin(){
+    document.getElementById('admin-invincible').textContent='Invincibility: '+(adminInvincible?'ON':'OFF');
+    document.getElementById('admin-return').disabled=!adminActive;
+    document.getElementById('admin-note').textContent=adminActive?'Practice active. Campaign saving is paused. Return to campaign restores your checkpoint.':'Controls start a separate practice session. Your campaign save stays untouched.';
+    updateHud();
+  }
+  function closeAdmin(){
+    if(state!=='admin')return;
+    state=adminPrevious;document.getElementById('admin-panel').hidden=true;clearInput();physicalKeys.clear();
+    previousTime=null;accumulator=0;(adminFocus||canvas).focus();
+  }
+  function beginAdminPractice(){
+    if(adminActive)return;
+    rememberStage();adminSnapshot=JSON.parse(JSON.stringify({version:2,stageIndex,highestStage,records:campaignRecords,
+      unlocked:[...unlockedCreatures],current,completed:[...completedStages],difficulty}));adminActive=true;
+  }
+  function adminAction(action){
+    if(state!=='admin')return;
+    const i=Number(document.getElementById('admin-level').value);
+    if(action==='jump'&&(!Number.isInteger(i)||i<0||i>=STAGES.length))return;
+    beginAdminPractice();
+    if(action==='unlock'){SPECIES.forEach(s=>unlockedCreatures.add(s.id));creatures.forEach(c=>c.rescued=true);}
+    if(action==='refill')lives=DIFFICULTIES[difficulty].lives;
+    if(action==='invincible')adminInvincible=!adminInvincible;
+    if(action==='jump'){
+      for(let n=0;n<i;n++)unlockStageCompanions(n);
+      loadStage(i);adminPrevious='playing';document.getElementById('campaign-menu').hidden=true;document.getElementById('end-screen').hidden=true;
+      adminFocus=canvas;document.getElementById('admin-close').focus();
+    }
+    document.getElementById('lives').textContent='Lives: '+lives;refreshAdmin();
+  }
+  function endAdminPractice(){
+    if(!adminActive)return;
+    const snapshot=adminSnapshot;adminActive=false;adminInvincible=false;adminSnapshot=null;
+    document.getElementById('admin-panel').hidden=true;applySave(snapshot);document.getElementById('end-screen').hidden=true;
+    document.getElementById('lives').textContent='Lives: '+lives;updateHud();
+  }
+  document.getElementById('admin-open').addEventListener('click',openAdmin);
+  document.getElementById('admin-close').addEventListener('click',closeAdmin);
+  document.getElementById('admin-return').addEventListener('click',endAdminPractice);
+  for(const action of ['jump','unlock','refill','invincible'])document.getElementById('admin-'+action).addEventListener('click',()=>adminAction(action));
   const keyActions = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Space: 'jump', KeyW: 'jump', KeyC:'ability', KeyK:'ability' };
   const physicalKeys = new Set();
   window.addEventListener('keydown', event => {
+    const textEntry=event.target?.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(event.target?.tagName);
+    if(event.code==='Escape'&&state==='admin'){event.preventDefault();closeAdmin();return;}
+    if(event.code==='Tab'&&state==='admin'){
+      const controls=[...document.getElementById('admin-panel').querySelectorAll('button:not(:disabled),select')];
+      const first=controls[0],last=controls[controls.length-1];
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}return;
+    }
+    if(textEntry||event.ctrlKey||event.metaKey||event.altKey){etStarted=0;return;}
+    if(!event.repeat){
+      const now=Date.now();
+      if(event.code==='KeyT'&&etStarted&&now-etStarted<=1000){event.preventDefault();etStarted=0;openAdmin();return;}
+      if(event.code==='KeyE')etStarted=now;
+      else if(event.code!=='Minus')etStarted=0;
+    }
+    if(state==='admin')return;
     if(event.code==='KeyF'&&!event.repeat){event.preventDefault();toggleFullscreen();return;}
     if(event.code==='Tab'&&state==='menu'){
       const controls=[...document.getElementById('campaign-menu').querySelectorAll('button:not(:disabled)')];
@@ -802,7 +1004,8 @@ function createCreatureArt(){
     if(!event.repeat){
       if(event.code==='KeyQ'){event.preventDefault();cycleCreature(-1);return;}
       if(event.code==='KeyE'){event.preventDefault();cycleCreature(1);return;}
-      if(/^Digit[1-8]$/.test(event.code)){event.preventDefault();selectCreature(SPECIES[Number(event.code.slice(-1))-1].id);return;}
+      if(/^Digit[0-9]$/.test(event.code)){event.preventDefault();selectCreature(SPECIES[(Number(event.code.slice(-1))+9)%10].id);return;}
+      if(event.code==='Minus'){event.preventDefault();selectCreature('tempo');return;}
     }
     const action = keyActions[event.code]; if (!action) return;
     event.preventDefault();
@@ -823,8 +1026,8 @@ function createCreatureArt(){
     while (accumulator >= STEP) { update(STEP); accumulator -= STEP; }
     draw(); requestAnimationFrame(frame);
   }
-  window.addEventListener('blur', () => { clearInput(); physicalKeys.clear(); previousTime = null; accumulator = 0; });
-  document.addEventListener('visibilitychange', () => { clearInput(); physicalKeys.clear(); previousTime = null; accumulator = 0; });
+  window.addEventListener('blur', () => { etStarted=0;clearInput(); physicalKeys.clear(); previousTime = null; accumulator = 0; });
+  document.addEventListener('visibilitychange', () => { etStarted=0;clearInput(); physicalKeys.clear(); previousTime = null; accumulator = 0; });
   function clearInput() {
     keys.clear(); touches.clear(); jumpQueued = false; jumpBufferTimer=0; abilityRequested=false; releaseJump();
     document.querySelectorAll('[data-action]').forEach(button => button.classList.toggle('pressed',false));
@@ -880,7 +1083,7 @@ function createCreatureArt(){
     ctx.save();ctx.translate(-camera,0);
     for(const solid of solids){
       if(solid.x+solid.w<camera-60||solid.x>camera+viewWidth+60)continue;
-      if(['rock','thorn','clay','gate','bridge','ice'].includes(solid.kind)) continue;
+      if(['rock','thorn','clay','gate','bridge','ice','movingPlatform'].includes(solid.kind)) continue;
       else ART.drawTerrain(ctx,solid.kind==='ground'?{...solid,h:Math.max(solid.h,viewHeight-offsetY-solid.y)}:solid,stage.region);
     }
     for(let i=0;i<checkpointStarts.length;i++){
@@ -888,10 +1091,16 @@ function createCreatureArt(){
     }
     for(const o of obstacles){
       // Bridge artwork's top edge matches its collision surface at y=500.
-      ART.drawObstacle(ctx,o.type==='wind'?{...o,active:powered(o)}:o,elapsed);
-      const names={rock:'CRAG · SMASH',thorn:'CINDER · BURN',wind:'GLINT · HOLD'+(o.link?' · '+o.link.toUpperCase():''),seed:'SPRIG · GROW',water:'FLOE · FREEZE',relay:'VOLT · '+(o.id||'').toUpperCase(),gate:'CIRCUIT '+(o.link||'').toUpperCase(),clay:'BURROW · DIG',crystal:'ECHO · SING',spikes:'SPIKES · JUMP'};
+      if(['saw','movingPlatform'].includes(o.type)){
+        ctx.strokeStyle=stasisTime>0?'#a8ffee':'#b3a5a0';ctx.lineWidth=2;ctx.setLineDash([5,7]);ctx.beginPath();
+        ctx.moveTo(o.originX-o.range+o.w/2,o.y+o.h/2);ctx.lineTo(o.originX+o.range+o.w/2,o.y+o.h/2);ctx.stroke();ctx.setLineDash([]);
+      }
+      ART.drawObstacle(ctx,o.type==='wind'?{...o,active:powered(o)}:o,o.type==='saw'?o.phase:elapsed);
+      const names={rock:'CRAG · SMASH',thorn:'CINDER · BURN',wind:'GLINT · HOLD'+(o.link?' · '+o.link.toUpperCase():''),seed:'SPRIG · GROW',water:'FLOE · FREEZE',relay:'VOLT · '+(o.id||'').toUpperCase(),gate:'CIRCUIT '+(o.link||'').toUpperCase(),clay:'BURROW · DIG',crystal:'ECHO · SING',spikes:'SPIKES · JUMP',anchor:'TETHER · GRAPPLE',dashGap:'ZIP · JUMP + DASH',grappleGap:'FOLLOW THE RING',clockGap:'TEMPO · FREEZE FERRY',movingPlatform:'MOVING FERRY',saw:'MOVING SAW'};
       label(o.remaining>0?Math.ceil(o.remaining)+'s · '+names[o.type]:names[o.type],o.x-18,['seed','water','crystal'].includes(o.type)?450:Math.max(210,o.y-14),10,'#eafcff');
     }
+    if(grapple){ctx.strokeStyle='#fff4d9';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(player.x+17,player.y+20);ctx.lineTo(grapple.x+12,grapple.y+12);ctx.stroke();}
+    if(dashTime>0){ctx.globalAlpha=.35;rect(player.x-player.facing*45,player.y+12,70,20,'#ff9bbd');ctx.globalAlpha=1;}
     for(const c of creatures) if(!c.rescued){
       const species=speciesOf(c.id);
       circle(c.x,c.y,20,'#26304d');
@@ -962,16 +1171,23 @@ main:fullscreen,main.expanded{width:100vw;height:100dvh;max-width:none;max-heigh
 .atlas{width:min(960px,100%);margin:auto;color:#e9ecd8}.atlas header{display:flex;align-items:center;justify-content:space-between;gap:20px}.atlas h1{font:900 clamp(28px,5vw,48px) ui-monospace,monospace;letter-spacing:-2px;margin:10px 0;color:#f7e5b2}.atlas p{line-height:1.6;color:#bed3d2;font-size:13px}.eyebrow{letter-spacing:3px;font-size:10px;color:#b1d99c}.atlas button{background:#283e51;border:1px solid #789c9b;color:#f4efd9;font:600 13px ui-monospace,monospace;padding:12px;cursor:pointer}.atlas button:hover:enabled{background:#3b5b69}.atlas button:disabled{opacity:.35;cursor:default}.atlas button:focus-visible{outline:3px solid #f4d99b;outline-offset:3px}.menu-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.difficulty-select{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px}.difficulty-select button{padding:8px 12px}.worlds{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0}.world{border-top:4px solid #91bc91;background:#223447;padding:12px}.world:nth-child(2){border-color:#8dcbd4}.world:nth-child(3){border-color:#e6a083}.world:nth-child(4){border-color:#bcafe0}.world:nth-child(5){border-color:#e0c98a}.world:nth-child(6){border-color:#9fb8ff}.world h2{font-size:14px;margin:0 0 14px}.world button{width:100%;text-align:left;margin:4px 0;min-height:60px;font-size:11px}.field-guide{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.friend{background:#223447;padding:12px;display:flex;align-items:center;gap:8px}.friend canvas{width:55px;height:60px;flex:none}.friend strong{color:#f3d9a3;font-size:12px}.friend p{font-size:11px;margin:5px 0}#save-status{font-size:11px;color:#d7c6a5}
 @media(max-width:760px){#journey-menu{right:60px;font-size:10px;padding:9px}.worlds{grid-template-columns:repeat(2,1fr)}.field-guide{grid-template-columns:repeat(2,1fr)}.journey{max-width:calc(100% - 24px);left:12px;top:132px}.journey .powers{font-size:10px;gap:8px}.track{margin:5px 0}.journey{font-size:9px;padding:8px}#toast{top:220px;font-size:11px}.hud{gap:4px}.stats{gap:8px}.touch-controls{left:8px;right:8px}.directions,.actions{gap:5px}.touch-controls button{width:48px;height:56px}.touch-controls .switch,.touch-controls .ability{width:54px;font-size:10px}.touch-controls .jump{width:56px;font-size:11px}.atlas header{display:block}.atlas h1{font-size:30px}.atlas{padding-bottom:20px}}
 @media(max-height:450px){.touch-controls{display:flex}.journey{top:65px;left:12px;max-width:52%}#journey-menu{top:10px;right:155px}#fullscreen{top:10px}.hud{right:260px}#toast{top:126px}.help{display:none}}
+#admin-open{position:absolute;right:24px;top:138px;z-index:5;background:#17233e;color:#ffe2a2;border:2px solid #bca573;padding:8px 12px;cursor:pointer}
+#admin-panel{z-index:20;overflow:auto;padding:20px;background:#111e32f5}#admin-panel .atlas{max-width:580px}
+#admin-panel select{width:100%;padding:12px;background:#223447;color:#fff;font:inherit;margin:8px 0 16px}#admin-panel button{min-height:44px}#admin-panel label{display:block}
+#motion-status,#cheat-status{display:block;letter-spacing:0;margin-top:5px;color:#afffea}#cheat-status{color:#ffdc8e}
+@media(max-width:760px){#admin-open{right:12px;top:180px;padding:6px 10px}.powers{flex-wrap:wrap}.track{width:180px}}
+@media(max-height:450px){#admin-open{top:62px;right:12px}}
 </style></head><body><main id="game-shell" aria-label="Creature Call game">
+<button id="admin-open" type="button" aria-label="Open admin panel (E then T)">ET</button>
 <button id="journey-menu" type="button">MAP / GUIDE</button>
 <button id="fullscreen" type="button" aria-label="Toggle fullscreen" aria-pressed="false">FULLSCREEN</button>
 <canvas id="game" tabindex="-1" aria-label="A rescue platformer. Move with A and D or arrow keys; jump with Space or W; use your companion's ability with C or K; switch companions with Q, E, or the number keys."></canvas>
 <header class="hud"><span class="brand">CREATURE CALL</span><div class="stats"><span id="difficulty">NORMAL</span><span id="coins">Coins: 0</span><span id="lives">Lives: 3</span></div></header>
-<div class="journey"><span id="route"></span><div class="track"><div id="progress"></div></div><div class="powers"><span id="crew"></span><span id="shards">◆ 0/0</span></div></div><div id="toast" role="status"></div>
-<div class="help">← → / A D &nbsp; Move &nbsp; · &nbsp; Space / W &nbsp; Jump &nbsp; · &nbsp; C / K &nbsp; Ability &nbsp; · &nbsp; Q / E or 1-8 &nbsp; Switch companion</div>
+<div class="journey"><span id="route"></span><div class="track"><div id="progress"></div></div><div class="powers"><span id="crew"></span><span id="shards">◆ 0/0</span></div><span id="motion-status"></span><span id="cheat-status" role="status"></span></div><div id="toast" role="status"></div>
+<div class="help">← → / A D &nbsp; Move &nbsp; · &nbsp; Space / W &nbsp; Jump &nbsp; · &nbsp; C / K &nbsp; Ability &nbsp; · &nbsp; Q / E or 1–9 / 0 / − &nbsp; Switch companion</div>
 <div class="touch-controls" aria-label="Touch controls"><div class="directions"><button type="button" data-action="left" aria-label="Move left">←</button><button type="button" data-action="right" aria-label="Move right">→</button></div><div class="actions"><button type="button" class="switch" data-action="switch" aria-label="Switch companion">SWITCH</button><button type="button" class="ability" data-action="ability" aria-label="Use companion ability">ABILITY</button><button type="button" class="jump" data-action="jump" aria-label="Jump">JUMP</button></div></div>
 <section id="end-screen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="end-title" aria-describedby="end-detail" hidden><div class="card"><h1 id="end-title"></h1><p id="end-detail"></p><button id="restart" type="button">Play again</button></div></section>
-<section id="campaign-menu" class="overlay" role="dialog" aria-modal="true" aria-label="Journey map" hidden><div class="atlas"><header><div><span class="eyebrow">EIGHT FRIENDS · SIX WORLDS · ONE SKYHEART</span><h1>CREATURE CALL</h1><p>Find your crew. Learn their gifts. Bring the islands back to life.</p></div><button id="menu-back">Play / return →</button></header><div class="menu-actions"><button id="saved-journey">Resume saved journey</button><button id="new-journey">New journey</button></div><div class="difficulty-select" role="group" aria-label="Difficulty"><span class="eyebrow">DIFFICULTY</span><button id="difficulty-easy">Easy</button><button id="difficulty-normal">Normal</button><button id="difficulty-hard">Hard</button><button id="difficulty-extra">Extra Hard</button></div><div id="save-status">Progress saves in this browser at checkpoints, discoveries and stage clears.</div><div class="worlds"><div class="world"><h2>Mosslight Isles</h2><p>Learn to smash, glide and grow</p><button id="level-0">Stage 1</button><button id="level-1">Stage 2</button><button id="level-2">Stage 3</button></div><div class="world"><h2>Glasswater Coast</h2><p>Meet fire, ice and electricity</p><button id="level-3">Stage 4</button><button id="level-4">Stage 5</button><button id="level-5">Stage 6</button></div><div class="world"><h2>Copperfall Works</h2><p>Combine abilities under pressure</p><button id="level-6">Stage 7</button><button id="level-7">Stage 8</button><button id="level-8">Stage 9</button></div><div class="world"><h2>Aurora Heights</h2><p>Restore the Skyheart</p><button id="level-9">Stage 10</button><button id="level-10">Stage 11</button><button id="level-11">Stage 12</button></div><div class="world"><h2>Underroot Reaches</h2><p>Meet the dig and the song</p><button id="level-12">Stage 13</button><button id="level-13">Stage 14</button></div><div class="world"><h2>The Last Circuit</h2><p>Every gift, combined</p><button id="level-14">Stage 15</button><button id="level-15">Stage 16</button><button id="level-16">Stage 17</button><button id="level-17">Stage 18</button></div></div><div class="field-guide"><div class="friend"><canvas id="portrait-crag" width="56" height="60" aria-label="crag portrait"></canvas><div><strong>CRAG</strong><p>Break tall stone barriers.</p></div></div><div class="friend"><canvas id="portrait-glint" width="56" height="60" aria-label="glint portrait"></canvas><div><strong>GLINT</strong><p>Hold ability in wind to fly.</p></div></div><div class="friend"><canvas id="portrait-sprig" width="56" height="60" aria-label="sprig portrait"></canvas><div><strong>SPRIG</strong><p>Grow lasting vine bridges.</p></div></div><div class="friend"><canvas id="portrait-cinder" width="56" height="60" aria-label="cinder portrait"></canvas><div><strong>CINDER</strong><p>Burn tangled thorn walls.</p></div></div><div class="friend"><canvas id="portrait-floe" width="56" height="60" aria-label="floe portrait"></canvas><div><strong>FLOE</strong><p>Freeze water. Watch the timer.</p></div></div><div class="friend"><canvas id="portrait-volt" width="56" height="60" aria-label="volt portrait"></canvas><div><strong>VOLT</strong><p>Power matching lettered circuits.</p></div></div><div class="friend"><canvas id="portrait-burrow" width="56" height="60" aria-label="burrow portrait"></canvas><div><strong>BURROW</strong><p>Dig through packed clay walls.</p></div></div><div class="friend"><canvas id="portrait-echo" width="56" height="60" aria-label="echo portrait"></canvas><div><strong>ECHO</strong><p>Sing crystal nodes into bridges.</p></div></div></div><p>Move ← → / A D · Jump Space / W · Ability C / K · Switch Q / E or 1–8 · Fullscreen F<br>Charge circuits again to retry. Checkpoints keep your companions and cleared obstacles. Spikes cost a life on touch, just like a fall.</p></div></section></main><script>(${gameClient.toString()})();</script></body></html>`;
+<section id="campaign-menu" class="overlay" role="dialog" aria-modal="true" aria-label="Journey map" hidden><div class="atlas"><header><div><span class="eyebrow">ELEVEN FRIENDS · NINE CHAPTERS · ONE SKYHEART</span><h1>CREATURE CALL</h1><p>Find your crew. Learn their gifts. Bring the islands back to life.</p></div><button id="menu-back">Play / return →</button></header><div class="menu-actions"><button id="saved-journey">Resume saved journey</button><button id="new-journey">New journey</button></div><div class="difficulty-select" role="group" aria-label="Difficulty"><span class="eyebrow">DIFFICULTY</span><button id="difficulty-easy">Easy</button><button id="difficulty-normal">Normal</button><button id="difficulty-hard">Hard</button><button id="difficulty-extra">Extra Hard</button></div><div id="save-status">Progress saves in this browser at checkpoints, discoveries and stage clears.</div><div class="worlds"><div class="world"><h2>Mosslight Isles</h2><p>Learn to smash, glide and grow</p><button id="level-0">Stage 1</button><button id="level-1">Stage 2</button><button id="level-2">Stage 3</button></div><div class="world"><h2>Glasswater Coast</h2><p>Meet fire, ice and electricity</p><button id="level-3">Stage 4</button><button id="level-4">Stage 5</button><button id="level-5">Stage 6</button></div><div class="world"><h2>Copperfall Works</h2><p>Combine abilities under pressure</p><button id="level-6">Stage 7</button><button id="level-7">Stage 8</button><button id="level-8">Stage 9</button></div><div class="world"><h2>Aurora Heights</h2><p>Restore the Skyheart</p><button id="level-9">Stage 10</button><button id="level-10">Stage 11</button><button id="level-11">Stage 12</button></div><div class="world"><h2>Underroot Reaches</h2><p>Meet the dig and the song</p><button id="level-12">Stage 13</button><button id="level-13">Stage 14</button></div><div class="world"><h2>The Last Circuit</h2><p>Every gift, combined</p><button id="level-14">Stage 15</button><button id="level-15">Stage 16</button><button id="level-16">Stage 17</button><button id="level-17">Stage 18</button></div><div class="world"><h2>The Moving Frontier</h2><p>Learn silk, momentum, and time</p><button id="level-18">Stage 19</button><button id="level-19">Stage 20</button><button id="level-20">Stage 21</button></div><div class="world"><h2>Pendulum Trails</h2><p>Find your rhythm in moving worlds</p><button id="level-21">Stage 22</button><button id="level-22">Stage 23</button><button id="level-23">Stage 24</button></div><div class="world"><h2>Beyond the Skyheart</h2><p>Combine your new movement powers</p><button id="level-24">Stage 25</button><button id="level-25">Stage 26</button><button id="level-26">Stage 27</button></div></div><div class="field-guide"><div class="friend"><canvas id="portrait-crag" width="56" height="60" aria-label="crag portrait"></canvas><div><strong>CRAG</strong><p>Break tall stone barriers.</p></div></div><div class="friend"><canvas id="portrait-glint" width="56" height="60" aria-label="glint portrait"></canvas><div><strong>GLINT</strong><p>Hold ability in wind to fly.</p></div></div><div class="friend"><canvas id="portrait-sprig" width="56" height="60" aria-label="sprig portrait"></canvas><div><strong>SPRIG</strong><p>Grow lasting vine bridges.</p></div></div><div class="friend"><canvas id="portrait-cinder" width="56" height="60" aria-label="cinder portrait"></canvas><div><strong>CINDER</strong><p>Burn tangled thorn walls.</p></div></div><div class="friend"><canvas id="portrait-floe" width="56" height="60" aria-label="floe portrait"></canvas><div><strong>FLOE</strong><p>Freeze water. Watch the timer.</p></div></div><div class="friend"><canvas id="portrait-volt" width="56" height="60" aria-label="volt portrait"></canvas><div><strong>VOLT</strong><p>Power matching lettered circuits.</p></div></div><div class="friend"><canvas id="portrait-burrow" width="56" height="60" aria-label="burrow portrait"></canvas><div><strong>BURROW</strong><p>Dig through packed clay walls.</p></div></div><div class="friend"><canvas id="portrait-echo" width="56" height="60" aria-label="echo portrait"></canvas><div><strong>ECHO</strong><p>Sing crystal nodes into bridges.</p></div></div><div class="friend"><canvas id="portrait-tether" width="56" height="60" aria-label="tether portrait"></canvas><div><strong>TETHER</strong><p>Tap ability to pull toward a ring ahead.</p></div></div><div class="friend"><canvas id="portrait-zip" width="56" height="60" aria-label="zip portrait"></canvas><div><strong>ZIP</strong><p>Jump, then dash. Land to recharge.</p></div></div><div class="friend"><canvas id="portrait-tempo" width="56" height="60" aria-label="tempo portrait"></canvas><div><strong>TEMPO</strong><p>Freeze moving ferries and saws for 4s.</p></div></div></div><p>Move ← → / A D · Jump Space / W · Ability C / K · Switch Q / E or 1–9 / 0 / − · Fullscreen F<br>Charge circuits again to retry. Checkpoints keep your companions and cleared obstacles. Spikes cost a life on touch, just like a fall.</p></div></section><section id="admin-panel" class="overlay" role="dialog" aria-modal="true" aria-labelledby="admin-title" hidden><div class="atlas"><header><div><span class="eyebrow">E → T · PRACTICE TOOLS</span><h1 id="admin-title">Admin panel</h1></div><button id="admin-close">Close / Escape</button></header><p id="admin-note"></p><label for="admin-level">Choose a level</label><select id="admin-level"><option value="0">Level 1</option><option value="1">Level 2</option><option value="2">Level 3</option><option value="3">Level 4</option><option value="4">Level 5</option><option value="5">Level 6</option><option value="6">Level 7</option><option value="7">Level 8</option><option value="8">Level 9</option><option value="9">Level 10</option><option value="10">Level 11</option><option value="11">Level 12</option><option value="12">Level 13</option><option value="13">Level 14</option><option value="14">Level 15</option><option value="15">Level 16</option><option value="16">Level 17</option><option value="17">Level 18</option><option value="18">Level 19</option><option value="19">Level 20</option><option value="20">Level 21</option><option value="21">Level 22</option><option value="22">Level 23</option><option value="23">Level 24</option><option value="24">Level 25</option><option value="25">Level 26</option><option value="26">Level 27</option></select><div class="menu-actions"><button id="admin-jump">Play selected level</button><button id="admin-unlock">Unlock all creatures</button><button id="admin-refill">Refill lives</button><button id="admin-invincible">Invincibility: OFF</button><button id="admin-return">Return to campaign checkpoint</button></div><p>Practice changes stay in this session. Your saved campaign is protected. Falling still returns you to safe ground.</p></div></section></main><script>(${gameClient.toString()})();</script></body></html>`;
 app.get('/', (req, res) => res.type('html').send(page));
 if (require.main === module) {
   const port = process.env.PORT || 3000;
